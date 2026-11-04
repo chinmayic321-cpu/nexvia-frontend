@@ -1,0 +1,10 @@
+﻿node_modules/
+dist/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+cloudflared.exe
+cloudflared.exe.exe
+src/App_backup.jsx
