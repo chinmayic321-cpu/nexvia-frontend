@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
 import { Html5Qrcode } from 'html5-qrcode'
 
-// Change this URL only when your backend tunnel changes.
 const API = 'https://nexvia-backend-awp6.onrender.com/api'
 
 const BEACON_ID = 'ISE-B204'
@@ -10,11 +9,6 @@ const BEACON_NAME = 'NEXVIA-ISE-B204'
 const BEACON_SERVICE_UUID =
   '12345678-1234-1234-1234-123456789001'
 
-// The Django attendance endpoint currently expects an RSSI value.
-// Web Bluetooth does not reliably expose RSSI to a normal web page,
-// so this value is sent only AFTER the physical NEXVIA beacon has
-// been verified through its GATT service. It is not a user-editable
-// signal-strength value.
 const VERIFIED_BEACON_RSSI = -60
 
 
@@ -70,10 +64,7 @@ async function call(path, token, options = {}) {
 
 const readLocal = (key, fallback) => {
   try {
-    return (
-      JSON.parse(localStorage.getItem(key)) ??
-      fallback
-    )
+    return JSON.parse(localStorage.getItem(key)) ?? fallback
   } catch {
     return fallback
   }
@@ -81,16 +72,11 @@ const readLocal = (key, fallback) => {
 
 
 const saveLocal = (key, value) =>
-  localStorage.setItem(
-    key,
-    JSON.stringify(value)
-  )
+  localStorage.setItem(key, JSON.stringify(value))
 
 
 const fmt = value =>
-  value
-    ? new Date(value).toLocaleString()
-    : '—'
+  value ? new Date(value).toLocaleString() : '—'
 
 
 function Tag({ children, type = '' }) {
@@ -171,13 +157,9 @@ function BottomNav({
         <button
           key={item.id}
           className={
-            active === item.id
-              ? 'active'
-              : ''
+            active === item.id ? 'active' : ''
           }
-          onClick={() =>
-            onChange(item.id)
-          }
+          onClick={() => onChange(item.id)}
         >
           <span>{item.icon}</span>
           {item.label}
@@ -191,21 +173,11 @@ function BottomNav({
 /* LOGIN */
 
 function Login({ onLogin }) {
-  const [username, setUsername] =
-    useState('')
-
-  const [password, setPassword] =
-    useState('')
-
-  const [role, setRole] =
-    useState('student')
-
-  const [loading, setLoading] =
-    useState(false)
-
-  const [error, setError] =
-    useState('')
-
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [role, setRole] = useState('student')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
   async function submit(e) {
     e.preventDefault()
@@ -214,18 +186,14 @@ function Login({ onLogin }) {
     setError('')
 
     try {
-      const data = await call(
-        '/login/',
-        null,
-        {
-          method: 'POST',
-          body: JSON.stringify({
-            id: username.trim(),
-            password,
-            role,
-          }),
-        }
-      )
+      const data = await call('/login/', null, {
+        method: 'POST',
+        body: JSON.stringify({
+          id: username.trim(),
+          password,
+          role,
+        }),
+      })
 
       if (!data.token || !data.user) {
         throw new Error(
@@ -246,7 +214,6 @@ function Login({ onLogin }) {
     }
   }
 
-
   return (
     <div className="login-page">
       <div className="hero">
@@ -261,10 +228,7 @@ function Login({ onLogin }) {
         </p>
       </div>
 
-      <form
-        className="card"
-        onSubmit={submit}
-      >
+      <form className="card" onSubmit={submit}>
         <h2>Welcome back!</h2>
 
         <p className="sub">
@@ -275,9 +239,7 @@ function Login({ onLogin }) {
 
         <select
           value={role}
-          onChange={e =>
-            setRole(e.target.value)
-          }
+          onChange={e => setRole(e.target.value)}
         >
           <option value="student">
             Student
@@ -341,92 +303,64 @@ function Login({ onLogin }) {
 
 /* STUDENT HOME */
 
-function StudentHome({
-  token,
-  user,
-}) {
-  const [attendance, setAttendance] =
-    useState([])
+function StudentHome({ token, user }) {
+  const [attendance, setAttendance] = useState([])
+  const [claims, setClaims] = useState([])
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(true)
 
-  const [claims, setClaims] =
-    useState([])
+  const load = useCallback(async () => {
+    setLoading(true)
+    setError('')
 
-  const [error, setError] =
-    useState('')
+    try {
+      const [a, c] = await Promise.all([
+        call('/attendance/my/', token),
+        call('/complaints/', token),
+      ])
 
-  const [loading, setLoading] =
-    useState(true)
+      setAttendance(
+        Array.isArray(a)
+          ? a
+          : a.results || []
+      )
 
-
-  const load = useCallback(
-    async () => {
-      setLoading(true)
-      setError('')
-
-      try {
-        const [a, c] =
-          await Promise.all([
-            call(
-              '/attendance/my/',
-              token
-            ),
-
-            call(
-              '/complaints/',
-              token
-            ),
-          ])
-
-        setAttendance(
-          Array.isArray(a)
-            ? a
-            : a.results || []
-        )
-
-        setClaims(
-          Array.isArray(c)
-            ? c
-            : c.results || []
-        )
-      } catch (err) {
-        setError(err.message)
-      } finally {
-        setLoading(false)
-      }
-    },
-    [token]
-  )
-
+      setClaims(
+        Array.isArray(c)
+          ? c
+          : c.results || []
+      )
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }, [token])
 
   useEffect(() => {
     load()
   }, [load])
 
+  const present = attendance.reduce(
+    (sum, item) =>
+      sum + Number(item.present || 0),
+    0
+  )
 
-  const present =
-    attendance.reduce(
-      (sum, item) =>
-        sum +
-        Number(item.present || 0),
-      0
-    )
-
-
-  const total =
-    attendance.reduce(
-      (sum, item) =>
-        sum +
-        Number(item.total || 0),
-      0
-    )
-
+  const total = attendance.reduce(
+    (sum, item) =>
+      sum + Number(item.total || 0),
+    0
+  )
 
   const percent = total
-    ? Math.round(
-        (present / total) * 100
-      )
+    ? Math.round((present / total) * 100)
     : 0
 
+  const timetable = readLocal(
+    'nexvia_timetable',
+    []
+  )
 
   return (
     <>
@@ -436,13 +370,11 @@ function StudentHome({
         </div>
 
         <h2>
-          Hello,{' '}
-          {user?.name || 'Student'} 👋
+          Hello, {user?.name || 'Student'} 👋
         </h2>
 
         <p className="sub">
-          {user?.department ||
-            'ISE'} Department
+          {user?.department || 'ISE'} Department
         </p>
 
         <div
@@ -455,9 +387,7 @@ function StudentHome({
             </div>
 
             <h1>
-              {loading
-                ? '—'
-                : `${percent}%`}
+              {loading ? '—' : `${percent}%`}
             </h1>
           </div>
 
@@ -479,14 +409,11 @@ function StudentHome({
             </div>
 
             <h2>
-              {loading
-                ? '—'
-                : claims.length}
+              {loading ? '—' : claims.length}
             </h2>
           </div>
         </div>
       </div>
-
 
       {error && (
         <p className="bad-box">
@@ -494,11 +421,9 @@ function StudentHome({
         </p>
       )}
 
-
       <SectionTitle>
         Subject-wise attendance
       </SectionTitle>
-
 
       {loading ? (
         <Empty>
@@ -509,87 +434,73 @@ function StudentHome({
           No attendance records available.
         </Empty>
       ) : (
-        attendance.map(
-          (item, index) => {
-            const p = Number(
-              item.percent ??
-                (
-                  item.total
-                    ? (
-                        item.present /
-                        item.total
-                      ) * 100
-                    : 0
-                )
-            )
+        attendance.map((item, index) => {
+          const p = Number(
+            item.percent ??
+              (
+                item.total
+                  ? (item.present / item.total) * 100
+                  : 0
+              )
+          )
 
-            return (
-              <div
-                className="card"
-                key={
-                  item.id ||
-                  item.course ||
-                  index
-                }
-              >
-                <div className="row">
-                  <strong>
-                    {item.course ||
-                      item.subject ||
-                      'Subject'}
-                  </strong>
+          return (
+            <div
+              className="card"
+              key={
+                item.id ||
+                item.course ||
+                index
+              }
+            >
+              <div className="row">
+                <strong>
+                  {item.course ||
+                    item.subject ||
+                    'Subject'}
+                </strong>
 
-                  <Tag
-                    type={
-                      p >= 75
-                        ? 'ok'
-                        : 'bad'
-                    }
-                  >
-                    {Math.round(p)}%
-                  </Tag>
-                </div>
-
-                <p className="sub">
-                  {item.present || 0} /{' '}
-                  {item.total || 0}{' '}
-                  classes attended
-                </p>
-
-                <div className="bar">
-                  <div
-                    style={{
-                      width: `${Math.min(
-                        100,
-                        p
-                      )}%`,
-                    }}
-                  />
-                </div>
+                <Tag
+                  type={
+                    p >= 75
+                      ? 'ok'
+                      : 'bad'
+                  }
+                >
+                  {Math.round(p)}%
+                </Tag>
               </div>
-            )
-          }
-        )
-      )}
 
+              <p className="sub">
+                {item.present || 0} /{' '}
+                {item.total || 0} classes attended
+              </p>
+
+              <div className="bar">
+                <div
+                  style={{
+                    width: `${Math.min(
+                      100,
+                      p
+                    )}%`,
+                  }}
+                />
+              </div>
+            </div>
+          )
+        })
+      )}
 
       <SectionTitle>
         Timetable
       </SectionTitle>
 
-
-      {readLocal(
-        'nexvia_timetable',
-        []
-      ).length === 0 ? (
+      {timetable.length === 0 ? (
         <Empty>
           No timetable entries added yet.
         </Empty>
       ) : (
-        readLocal(
-          'nexvia_timetable',
-          []
-        ).map(item => (
+        timetable.map(item => (
           <div
             className="card"
             key={item.id}
@@ -605,11 +516,9 @@ function StudentHome({
         ))
       )}
 
-
       <SectionTitle>
         Attendance
       </SectionTitle>
-
 
       <div className="card">
         <h3>
@@ -617,26 +526,12 @@ function StudentHome({
         </h3>
 
         <p className="sub">
-          Open{' '}
-          <strong>Scan QR</strong>{' '}
-          to complete attendance.
-          Attendance is accepted only
-          after the physical NEXVIA
-          beacon and your device
-          biometric are verified.
+          Open <strong>Scan QR</strong> to
+          complete attendance. Attendance
+          is accepted only after the
+          physical NEXVIA beacon and your
+          device biometric are verified.
         </p>
-
-        <button
-          className="btn"
-          onClick={() =>
-            window.scrollTo({
-              top: 0,
-              behavior: 'smooth',
-            })
-          }
-        >
-          Go to Scan QR
-        </button>
       </div>
     </>
   )
@@ -649,23 +544,18 @@ function QRScanner({
   onScan,
   onClose,
 }) {
-  const [error, setError] =
-    useState('')
-
+  const [error, setError] = useState('')
 
   useEffect(() => {
     let mounted = true
 
-    const instance =
-      new Html5Qrcode(
-        'nexvia-qr-reader'
-      )
-
+    const instance = new Html5Qrcode(
+      'nexvia-qr-reader'
+    )
 
     instance
       .start(
         { facingMode: 'environment' },
-
         {
           fps: 10,
           qrbox: {
@@ -673,7 +563,6 @@ function QRScanner({
             height: 220,
           },
         },
-
         text => {
           if (!mounted) return
 
@@ -683,7 +572,6 @@ function QRScanner({
             .stop()
             .catch(() => {})
         },
-
         () => {}
       )
       .catch(err => {
@@ -695,7 +583,6 @@ function QRScanner({
         }
       })
 
-
     return () => {
       mounted = false
 
@@ -706,7 +593,6 @@ function QRScanner({
       }
     }
   }, [onScan])
-
 
   return (
     <div className="card">
@@ -738,17 +624,10 @@ function QRScanner({
 /* STUDENT QR ATTENDANCE */
 
 function ScanTab({ token }) {
-  const [camera, setCamera] =
-    useState(false)
-
-  const [qr, setQr] =
-    useState('')
-
-  const [message, setMessage] =
-    useState('')
-
-  const [busy, setBusy] =
-    useState(false)
+  const [camera, setCamera] = useState(false)
+  const [qr, setQr] = useState('')
+  const [message, setMessage] = useState('')
+  const [busy, setBusy] = useState(false)
 
   const [beaconStatus, setBeaconStatus] =
     useState('Not verified')
@@ -760,37 +639,29 @@ function ScanTab({ token }) {
     useState(null)
 
 
-  const handleScan =
-    useCallback(value => {
-      setQr(value)
-      setCamera(false)
-      setMessage('')
-      setBeaconStatus(
-        'Not verified'
-      )
-      setBiometricStatus(
-        'Not verified'
-      )
-      setBeaconDevice(null)
-    }, [])
+  const handleScan = useCallback(value => {
+    setQr(value)
+    setCamera(false)
+    setMessage('')
+    setBeaconStatus('Not verified')
+    setBiometricStatus('Not verified')
+    setBeaconDevice(null)
+  }, [])
 
 
   function isBluetoothSupported() {
     return (
-      typeof navigator !==
-        'undefined' &&
+      typeof navigator !== 'undefined' &&
       'bluetooth' in navigator &&
       typeof navigator.bluetooth
-        ?.requestDevice ===
-        'function'
+        ?.requestDevice === 'function'
     )
   }
 
 
   function isWebAuthnSupported() {
     return (
-      typeof window !==
-        'undefined' &&
+      typeof window !== 'undefined' &&
       !!window.PublicKeyCredential &&
       !!navigator.credentials &&
       typeof navigator.credentials
@@ -802,61 +673,50 @@ function ScanTab({ token }) {
 
 
   /*
-   * FINAL PHYSICAL ESP32 BLE VERIFICATION
+   * ONLY BLE FUNCTION IN THIS FILE
    *
-   * Important:
-   * - Only NEXVIA devices are shown.
-   * - The browser connects to the actual ESP32 GATT server.
-   * - The NEXVIA service UUID is explicitly checked.
-   * - No manual RSSI value is accepted from the student.
-   * - No Android Settings pairing is required.
+   * The old duplicate BLE requestDevice()
+   * block has been removed.
    */
   async function verifyPhysicalBeacon() {
-    setMessage('')
     setBeaconStatus(
-      'Waiting for NEXVIA beacon selection...'
+      'Searching for NEXVIA beacon...'
     )
-
-    if (!window.isSecureContext) {
-      setBeaconStatus('Failed')
-
-      throw new Error(
-        'Beacon verification requires HTTPS. Open the NEXVIA Vercel link on your phone.'
-      )
-    }
-
 
     if (!isBluetoothSupported()) {
       setBeaconStatus('Failed')
 
       throw new Error(
-        'Web Bluetooth is not available in this browser. Use Chrome on Android for the physical ESP32 beacon verification.'
+        'Web Bluetooth is not supported in this browser.'
       )
     }
 
+    if (!window.isSecureContext) {
+      setBeaconStatus('Failed')
+
+      throw new Error(
+        'Bluetooth verification requires HTTPS. Open the NEXVIA Vercel link on your phone.'
+      )
+    }
 
     let device = null
 
-
     try {
       /*
-       * IMPORTANT:
-       * Do NOT use acceptAllDevices here.
-       * That allowed unrelated Bluetooth devices to
-       * appear in the chooser.
+       * Only NEXVIA devices are shown.
        */
-     device =
-  await navigator.bluetooth.requestDevice({
-    filters: [
-      {
-        namePrefix: 'NEXVIA',
-      },
-    ],
+      device =
+        await navigator.bluetooth.requestDevice({
+          filters: [
+            {
+              namePrefix: 'NEXVIA',
+            },
+          ],
 
-    optionalServices: [
-      BEACON_SERVICE_UUID,
-    ],
-  })
+          optionalServices: [
+            BEACON_SERVICE_UUID,
+          ],
+        })
 
 
       if (!device) {
@@ -867,13 +727,15 @@ function ScanTab({ token }) {
 
 
       setBeaconStatus(
-        'NEXVIA beacon selected. Connecting...'
+        `Connecting to ${
+          device.name || BEACON_NAME
+        }...`
       )
 
 
       /*
-       * If Chrome already has an old GATT connection,
-       * disconnect it first so we start clean.
+       * If Chrome has an old connection,
+       * disconnect it first.
        */
       try {
         if (
@@ -888,18 +750,17 @@ function ScanTab({ token }) {
 
 
       /*
-       * Android Chrome can need a short pause after
-       * the Bluetooth chooser closes.
+       * Small delay after the Android
+       * Bluetooth chooser closes.
        */
-      await new Promise(
-        resolve =>
-          setTimeout(resolve, 700)
+      await new Promise(resolve =>
+        setTimeout(resolve, 700)
       )
 
 
       if (!device.gatt) {
         throw new Error(
-          'Chrome found the NEXVIA beacon, but the device does not expose a GATT connection.'
+          'Chrome found the NEXVIA beacon, but GATT is not available.'
         )
       }
 
@@ -918,7 +779,7 @@ function ScanTab({ token }) {
         !server.connected
       ) {
         throw new Error(
-          'The NEXVIA beacon was selected, but the Bluetooth GATT connection could not be established.'
+          'The NEXVIA beacon was selected, but the GATT connection could not be established.'
         )
       }
 
@@ -928,13 +789,8 @@ function ScanTab({ token }) {
       )
 
 
-      /*
-       * Give the ESP32 a short moment to
-       * respond to service discovery.
-       */
-      await new Promise(
-        resolve =>
-          setTimeout(resolve, 500)
+      await new Promise(resolve =>
+        setTimeout(resolve, 300)
       )
 
 
@@ -948,59 +804,42 @@ function ScanTab({ token }) {
           )
       } catch (serviceError) {
         console.error(
-          'NEXVIA service discovery failed:',
+          'Primary service lookup failed:',
           serviceError
         )
 
         /*
-         * Some Android/Chrome combinations are
-         * more reliable when asking for the
-         * complete primary-service list.
+         * Fallback for Android/Chrome.
          */
         const services =
           await server.getPrimaryServices()
 
-
         service =
           services.find(
             item =>
-              String(
-                item.uuid
-              ).toLowerCase() ===
+              String(item.uuid).toLowerCase() ===
               String(
                 BEACON_SERVICE_UUID
               ).toLowerCase()
           )
-
-
-        if (!service) {
-          throw new Error(
-            'The ESP32 connected, but Chrome could not find the NEXVIA service UUID.'
-          )
-        }
       }
 
 
       if (!service) {
         throw new Error(
-          'The selected device does not contain the NEXVIA beacon service.'
+          'ESP32 connected, but the NEXVIA service UUID was not found.'
         )
       }
 
 
-      /*
-       * The service itself is enough for this
-       * project. We do not need to read/write a
-       * characteristic.
-       */
       setBeaconDevice(device)
 
       setBeaconStatus(
         'Verified ✓'
       )
 
-
       return true
+
     } catch (err) {
       console.error(
         'NEXVIA BLE verification error:',
@@ -1025,17 +864,7 @@ function ScanTab({ token }) {
         'NetworkError'
       ) {
         throw new Error(
-          'Chrome found the NEXVIA beacon but could not connect to its GATT server. Keep the ESP32 powered on and close to the phone, then try again.'
-        )
-      }
-
-
-      if (
-        err?.name ===
-        'NotSupportedError'
-      ) {
-        throw new Error(
-          'This Android browser does not support the required Bluetooth GATT operation.'
+          'Chrome found NEXVIA-ISE-B204 but could not connect to the ESP32 GATT server. Make sure the ESP32 is powered on, close to the phone, and not connected to another app such as nRF Connect.'
         )
       }
 
@@ -1045,7 +874,17 @@ function ScanTab({ token }) {
         'SecurityError'
       ) {
         throw new Error(
-          'Bluetooth access was blocked by the browser. Open NEXVIA using the HTTPS Vercel link and allow Bluetooth access.'
+          'Bluetooth access was blocked. Open NEXVIA using the HTTPS Vercel link and allow Bluetooth permission.'
+        )
+      }
+
+
+      if (
+        err?.name ===
+        'NotSupportedError'
+      ) {
+        throw new Error(
+          'This browser does not support the required Bluetooth GATT operation.'
         )
       }
 
@@ -1055,7 +894,7 @@ function ScanTab({ token }) {
         'InvalidStateError'
       ) {
         throw new Error(
-          'The Bluetooth connection was in an invalid state. Turn the ESP32 off and on once, then try again.'
+          'Bluetooth is in an invalid state. Turn the ESP32 off and on once, then try again.'
         )
       }
 
@@ -1119,55 +958,54 @@ function ScanTab({ token }) {
 
 
         const created =
-          await navigator.credentials.create(
-            {
-              publicKey: {
-                challenge:
-                  crypto.getRandomValues(
-                    new Uint8Array(32)
-                  ),
+          await navigator.credentials.create({
+            publicKey: {
+              challenge:
+                crypto.getRandomValues(
+                  new Uint8Array(32)
+                ),
 
-                rp: {
-                  name:
-                    'NEXVIA Smart Campus',
+              rp: {
+                name:
+                  'NEXVIA Smart Campus',
 
-                  id:
-                    window.location.hostname,
-                },
-
-                user: {
-                  id: userId,
-                  name: username,
-                  displayName:
-                    username,
-                },
-
-                pubKeyCredParams: [
-                  {
-                    type: 'public-key',
-                    alg: -7,
-                  },
-                  {
-                    type: 'public-key',
-                    alg: -257,
-                  },
-                ],
-
-                authenticatorSelection: {
-                  authenticatorAttachment:
-                    'platform',
-
-                  userVerification:
-                    'required',
-                },
-
-                timeout: 60000,
-
-                attestation:
-                  'none',
+                id:
+                  window.location.hostname,
               },
-            }
-          )
+
+              user: {
+                id: userId,
+                name: username,
+                displayName:
+                  username,
+              },
+
+              pubKeyCredParams: [
+                {
+                  type: 'public-key',
+                  alg: -7,
+                },
+
+                {
+                  type: 'public-key',
+                  alg: -257,
+                },
+              ],
+
+              authenticatorSelection: {
+                authenticatorAttachment:
+                  'platform',
+
+                userVerification:
+                  'required',
+              },
+
+              timeout: 60000,
+
+              attestation:
+                'none',
+            },
+          })
 
 
         if (!created) {
@@ -1202,36 +1040,27 @@ function ScanTab({ token }) {
         )
 
 
-      /*
-       * Second step:
-       * require device user verification.
-       */
       const verified =
-        await navigator.credentials.get(
-          {
-            publicKey: {
-              challenge:
-                crypto.getRandomValues(
-                  new Uint8Array(32)
-                ),
+        await navigator.credentials.get({
+          publicKey: {
+            challenge:
+              crypto.getRandomValues(
+                new Uint8Array(32)
+              ),
 
-              allowCredentials: [
-                {
-                  type:
-                    'public-key',
+            allowCredentials: [
+              {
+                type: 'public-key',
+                id: credentialId,
+              },
+            ],
 
-                  id:
-                    credentialId,
-                },
-              ],
+            userVerification:
+              'required',
 
-              userVerification:
-                'required',
-
-              timeout: 60000,
-            },
-          }
-        )
+            timeout: 60000,
+          },
+        })
 
 
       if (!verified) {
@@ -1246,9 +1075,9 @@ function ScanTab({ token }) {
       )
 
       return true
+
     } catch (err) {
       setBiometricStatus('Failed')
-
 
       if (
         err?.name ===
@@ -1258,7 +1087,6 @@ function ScanTab({ token }) {
           'Biometric verification was cancelled or not completed.'
         )
       }
-
 
       throw err
     }
@@ -1277,33 +1105,48 @@ function ScanTab({ token }) {
 
     setBusy(true)
     setMessage('')
-    setBeaconStatus(
-      'Not verified'
-    )
-    setBiometricStatus(
-      'Not verified'
-    )
+    setBeaconStatus('Not verified')
+    setBiometricStatus('Not verified')
+
+
+    let connectedDevice = null
 
 
     try {
       /*
        * STEP 1:
-       * Verify the real physical ESP32 beacon.
+       * Physical ESP32 beacon.
        */
-      await verifyPhysicalBeacon()
+      const beaconVerified =
+        await verifyPhysicalBeacon()
+
+
+      if (!beaconVerified) {
+        throw new Error(
+          'NEXVIA beacon verification failed.'
+        )
+      }
+
+
+      /*
+       * Save the device locally so
+       * cleanup can disconnect it.
+       */
+      connectedDevice =
+        beaconDevice
 
 
       /*
        * STEP 2:
-       * Verify device biometric.
+       * Device biometric.
        */
       await verifyBiometric()
 
 
       /*
        * STEP 3:
-       * Only after both checks succeed,
-       * send attendance to Django.
+       * Attendance is sent only
+       * after beacon + biometric.
        */
       const result =
         await call(
@@ -1314,8 +1157,10 @@ function ScanTab({ token }) {
 
             body: JSON.stringify({
               qr_token: qr,
+
               beacon_id:
                 BEACON_ID,
+
               rssi:
                 VERIFIED_BEACON_RSSI,
             }),
@@ -1327,21 +1172,24 @@ function ScanTab({ token }) {
         result.message ||
           'Attendance marked successfully!'
       )
+
     } catch (err) {
       setMessage(
         err?.message ||
           'Attendance verification failed.'
       )
+
     } finally {
       /*
-       * Disconnect after the attempt.
+       * Disconnect the physical
+       * beacon after the attempt.
        */
       try {
         if (
-          beaconDevice?.gatt
+          connectedDevice?.gatt
             ?.connected
         ) {
-          beaconDevice.gatt.disconnect()
+          connectedDevice.gatt.disconnect()
         }
       } catch {
         // Ignore disconnect errors.
@@ -1398,16 +1246,12 @@ function ScanTab({ token }) {
         {qr && (
           <div className="card">
             <p className="ok-box">
-              QR code scanned
-              successfully.
+              QR code scanned successfully.
             </p>
 
 
             <p className="sub">
               QR token is ready.
-              The manual beacon/RSSI
-              controls have been
-              removed.
             </p>
 
 
@@ -1435,7 +1279,7 @@ function ScanTab({ token }) {
                 {beaconStatus ===
                 'Verified ✓'
                   ? 'NEXVIA-ISE-B204 verified.'
-                  : 'Tap Verify Attendance and select the physical ESP32 beacon.'}
+                  : 'Select the physical ESP32 beacon when Chrome asks you.'}
               </p>
 
 
@@ -1498,23 +1342,17 @@ function ScanTab({ token }) {
 
       <div className="card">
         <h3>
-          Physical proximity
-          verification
+          Physical proximity verification
         </h3>
 
 
         <p className="sub">
-          NEXVIA now checks the real
-          ESP32 device
+          NEXVIA checks the real ESP32
+          device{' '}
           <strong>
-            {' '}
             NEXVIA-ISE-B204
           </strong>{' '}
-          through its Bluetooth
-          service. There is no
-          manual RSSI slider and
-          the student cannot enter
-          or change the beacon ID.
+          through its Bluetooth service.
         </p>
 
 
@@ -1529,8 +1367,7 @@ function ScanTab({ token }) {
                 : ''
           }
         >
-          Beacon:{' '}
-          {beaconStatus}
+          Beacon: {beaconStatus}
         </Tag>
 
 
@@ -1540,17 +1377,11 @@ function ScanTab({ token }) {
             marginTop: 12,
           }}
         >
-          Note: a normal browser
-          can verify the physical
-          BLE device and its service,
-          but it does not reliably
-          expose real RSSI distance
-          measurements. The Django
-          request therefore receives
-          the fixed verified-demo
-          RSSI only after the
-          physical beacon has been
-          successfully verified.
+          The browser verifies the
+          physical BLE device and its
+          NEXVIA service. Normal web
+          Bluetooth does not reliably
+          expose RSSI to the page.
         </p>
       </div>
 
@@ -1562,11 +1393,10 @@ function ScanTab({ token }) {
 
 
         <p className="sub">
-          After the physical beacon
-          is verified, NEXVIA
-          requests platform user
-          verification from this
-          device.
+          After the physical beacon is
+          verified, NEXVIA requests
+          platform user verification from
+          this device.
         </p>
 
 
@@ -1581,8 +1411,7 @@ function ScanTab({ token }) {
                 : ''
           }
         >
-          Biometric:{' '}
-          {biometricStatus}
+          Biometric: {biometricStatus}
         </Tag>
       </div>
     </>
@@ -1593,21 +1422,13 @@ function ScanTab({ token }) {
 /* STUDENT CAMPUSCARE */
 
 function StudentCare({ token }) {
-  const [items, setItems] =
-    useState([])
-
+  const [items, setItems] = useState([])
   const [category, setCategory] =
     useState('Infrastructure')
-
   const [description, setDescription] =
     useState('')
-
-  const [message, setMessage] =
-    useState('')
-
-  const [busy, setBusy] =
-    useState(false)
-
+  const [message, setMessage] = useState('')
+  const [busy, setBusy] = useState(false)
 
   const load = useCallback(
     async () => {
@@ -1624,19 +1445,15 @@ function StudentCare({ token }) {
             : data.results || []
         )
       } catch (err) {
-        setMessage(
-          err.message
-        )
+        setMessage(err.message)
       }
     },
     [token]
   )
 
-
   useEffect(() => {
     load()
   }, [load])
-
 
   async function submit(e) {
     e.preventDefault()
@@ -1644,20 +1461,19 @@ function StudentCare({ token }) {
     setBusy(true)
     setMessage('')
 
-
     try {
       await call(
         '/complaints/',
         token,
         {
           method: 'POST',
+
           body: JSON.stringify({
             category,
             description,
           }),
         }
       )
-
 
       setDescription('')
 
@@ -1667,14 +1483,11 @@ function StudentCare({ token }) {
 
       await load()
     } catch (err) {
-      setMessage(
-        err.message
-      )
+      setMessage(err.message)
     } finally {
       setBusy(false)
     }
   }
-
 
   return (
     <>
@@ -1683,20 +1496,15 @@ function StudentCare({ token }) {
           CampusCare
         </h2>
 
-
         <p className="sub">
-          Raise a concern and
-          track its progress.
+          Raise a concern and track
+          its progress.
         </p>
 
-
-        <form
-          onSubmit={submit}
-        >
+        <form onSubmit={submit}>
           <label>
             Category
           </label>
-
 
           <select
             value={category}
@@ -1720,11 +1528,9 @@ function StudentCare({ token }) {
             ))}
           </select>
 
-
           <label>
             Description
           </label>
-
 
           <textarea
             rows="4"
@@ -1738,7 +1544,6 @@ function StudentCare({ token }) {
             required
           />
 
-
           <button
             className="btn"
             disabled={busy}
@@ -1748,7 +1553,6 @@ function StudentCare({ token }) {
               : 'Submit complaint'}
           </button>
         </form>
-
 
         {message && (
           <p className="note">
@@ -1783,24 +1587,17 @@ function StudentCare({ token }) {
               </Tag>
             </div>
 
-
             <p>
               {item.description}
             </p>
 
-
             <p className="sub">
-              Raised:{' '}
-              {fmt(
-                item.raised_at
-              )}
+              Raised: {fmt(item.raised_at)}
             </p>
-
 
             {item.response && (
               <p className="note">
-                Response:{' '}
-                {item.response}
+                Response: {item.response}
               </p>
             )}
           </div>
@@ -1820,7 +1617,6 @@ function Student({
 }) {
   const [tab, setTab] =
     useState('home')
-
 
   const nav = [
     {
@@ -1842,7 +1638,6 @@ function Student({
     },
   ]
 
-
   return (
     <Shell
       title="Student Portal"
@@ -1856,20 +1651,13 @@ function Student({
         />
       )}
 
-
       {tab === 'scan' && (
-        <ScanTab
-          token={token}
-        />
+        <ScanTab token={token} />
       )}
-
 
       {tab === 'care' && (
-        <StudentCare
-          token={token}
-        />
+        <StudentCare token={token} />
       )}
-
 
       <BottomNav
         items={nav}
@@ -1881,11 +1669,9 @@ function Student({
 }
 
 
-/* FACULTY: DATABASE-BACKED STUDENT ROSTER */
+/* FACULTY STUDENTS */
 
-function StaffStudents({
-  token,
-}) {
+function StaffStudents({ token }) {
   const [students, setStudents] =
     useState([])
 
@@ -1916,7 +1702,6 @@ function StaffStudents({
       setLoading(true)
       setError('')
 
-
       try {
         const data =
           await call(
@@ -1930,9 +1715,7 @@ function StaffStudents({
             : data.results || []
         )
       } catch (err) {
-        setError(
-          err.message
-        )
+        setError(err.message)
       } finally {
         setLoading(false)
       }
@@ -1953,7 +1736,6 @@ function StaffStudents({
     setMessage('')
     setError('')
 
-
     try {
       const created =
         await call(
@@ -1961,6 +1743,7 @@ function StaffStudents({
           token,
           {
             method: 'POST',
+
             body: JSON.stringify({
               name,
               usn,
@@ -1968,7 +1751,6 @@ function StaffStudents({
             }),
           }
         )
-
 
       setStudents(old =>
         [...old, created].sort(
@@ -1979,21 +1761,15 @@ function StaffStudents({
         )
       )
 
-
       setName('')
       setUsn('')
-      setPassword(
-        'demo1234'
-      )
-
+      setPassword('demo1234')
 
       setMessage(
         `Student ${created.id} added to the database.`
       )
     } catch (err) {
-      setError(
-        err.message
-      )
+      setError(err.message)
     } finally {
       setBusy(false)
     }
@@ -2007,40 +1783,29 @@ function StaffStudents({
           Student management
         </h2>
 
-
         <p className="sub">
           Add students once. Their
           records are saved in the
-          Django database and become
-          available to attendance
-          reports.
+          Django database.
         </p>
 
-
-        <form
-          onSubmit={addStudent}
-        >
+        <form onSubmit={addStudent}>
           <label>
             Student full name
           </label>
 
-
           <input
             value={name}
             onChange={e =>
-              setName(
-                e.target.value
-              )
+              setName(e.target.value)
             }
             placeholder="e.g. Ananya Rao"
             required
           />
 
-
           <label>
             USN
           </label>
-
 
           <input
             value={usn}
@@ -2053,32 +1818,19 @@ function StaffStudents({
             required
           />
 
-
           <label>
             Student login password
           </label>
-
 
           <input
             type="text"
             value={password}
             onChange={e =>
-              setPassword(
-                e.target.value
-              )
+              setPassword(e.target.value)
             }
             minLength="6"
             required
           />
-
-
-          <p className="sub">
-            Default password is
-            demo1234. You can set a
-            different temporary
-            password for each student.
-          </p>
-
 
           <button
             className="btn"
@@ -2090,13 +1842,11 @@ function StaffStudents({
           </button>
         </form>
 
-
         {message && (
           <p className="ok-box">
             {message}
           </p>
         )}
-
 
         {error && (
           <p className="bad-box">
@@ -2110,7 +1860,6 @@ function StaffStudents({
         <SectionTitle>
           Registered students
         </SectionTitle>
-
 
         <button
           className="ghost sm"
@@ -2128,36 +1877,31 @@ function StaffStudents({
       ) : students.length === 0 ? (
         <Empty>
           No students registered yet.
-          Add the first student above.
         </Empty>
       ) : (
-        students.map(
-          student => (
-            <div
-              className="card"
-              key={student.id}
-            >
-              <div className="row">
-                <strong>
-                  {student.name ||
-                    student.username}
-                </strong>
+        students.map(student => (
+          <div
+            className="card"
+            key={student.id}
+          >
+            <div className="row">
+              <strong>
+                {student.name ||
+                  student.username}
+              </strong>
 
-                <Tag type="ok">
-                  Student
-                </Tag>
-              </div>
-
-
-              <p className="sub">
-                USN:{' '}
-                {student.id} ·
-                Department:{' '}
-                {student.department}
-              </p>
+              <Tag type="ok">
+                Student
+              </Tag>
             </div>
-          )
-        )
+
+            <p className="sub">
+              USN: {student.id} ·
+              Department:{' '}
+              {student.department}
+            </p>
+          </div>
+        ))
       )}
     </>
   )
@@ -2166,16 +1910,12 @@ function StaffStudents({
 
 /* FACULTY ATTENDANCE */
 
-function StaffSession({
-  token,
-}) {
+function StaffSession({ token }) {
   const [session, setSession] =
     useState(null)
 
   const [course, setCourse] =
-    useState(
-      'Computer Networks'
-    )
+    useState('Computer Networks')
 
   const [semester, setSemester] =
     useState('5')
@@ -2202,17 +1942,14 @@ function StaffSession({
               `/attendance/sessions/${id}/refresh/`,
               token,
               {
-                method:
-                  'POST',
+                method: 'POST',
               }
             )
 
           setSession(data)
           setSeconds(30)
         } catch (err) {
-          setMessage(
-            err.message
-          )
+          setMessage(err.message)
         }
       },
       [token]
@@ -2235,9 +1972,7 @@ function StaffSession({
               []
           )
         } catch (err) {
-          setMessage(
-            err.message
-          )
+          setMessage(err.message)
         }
       },
       [token]
@@ -2247,31 +1982,21 @@ function StaffSession({
   useEffect(() => {
     if (!session?.id) return
 
-
     const timer =
       setInterval(() => {
-        setSeconds(
-          value => {
-            if (value <= 1) {
-              refresh(
-                session.id
-              )
-
-              return 30
-            }
-
-            return value - 1
+        setSeconds(value => {
+          if (value <= 1) {
+            refresh(session.id)
+            return 30
           }
-        )
-      }, 1000)
 
+          return value - 1
+        })
+      }, 1000)
 
     return () =>
       clearInterval(timer)
-  }, [
-    session?.id,
-    refresh,
-  ])
+  }, [session?.id, refresh])
 
 
   async function start() {
@@ -2279,15 +2004,13 @@ function StaffSession({
     setMessage('')
     setRoster([])
 
-
     try {
       const data =
         await call(
           '/attendance/sessions/start/',
           token,
           {
-            method:
-              'POST',
+            method: 'POST',
 
             body: JSON.stringify({
               course,
@@ -2298,17 +2021,12 @@ function StaffSession({
           }
         )
 
-
       setSession(data)
       setSeconds(30)
 
-      await loadRoster(
-        data.id
-      )
+      await loadRoster(data.id)
     } catch (err) {
-      setMessage(
-        err.message
-      )
+      setMessage(err.message)
     } finally {
       setBusy(false)
     }
@@ -2318,17 +2036,14 @@ function StaffSession({
   async function stop() {
     setBusy(true)
 
-
     try {
       await call(
         `/attendance/sessions/${session.id}/stop/`,
         token,
         {
-          method:
-            'POST',
+          method: 'POST',
         }
       )
-
 
       setSession(null)
 
@@ -2336,9 +2051,7 @@ function StaffSession({
         'Attendance session stopped.'
       )
     } catch (err) {
-      setMessage(
-        err.message
-      )
+      setMessage(err.message)
     } finally {
       setBusy(false)
     }
@@ -2351,13 +2064,10 @@ function StaffSession({
         Attendance session
       </h2>
 
-
       <p className="sub">
-        Start a session and
-        display the QR code to
-        students.
+        Start a session and display
+        the QR code to students.
       </p>
-
 
       {!session ? (
         <>
@@ -2365,13 +2075,10 @@ function StaffSession({
             Subject
           </label>
 
-
           <select
             value={course}
             onChange={e =>
-              setCourse(
-                e.target.value
-              )
+              setCourse(e.target.value)
             }
           >
             {[
@@ -2388,18 +2095,14 @@ function StaffSession({
             ))}
           </select>
 
-
           <label>
             Semester
           </label>
 
-
           <select
             value={semester}
             onChange={e =>
-              setSemester(
-                e.target.value
-              )
+              setSemester(e.target.value)
             }
           >
             {[
@@ -2418,7 +2121,6 @@ function StaffSession({
             ))}
           </select>
 
-
           <button
             className="btn"
             onClick={start}
@@ -2435,93 +2137,72 @@ function StaffSession({
             ACTIVE SESSION
           </div>
 
-
           <h2>
             {session.course}
           </h2>
 
-
           <p className="sub">
-            Semester{' '}
-            {session.semester}
+            Semester {session.semester}
           </p>
-
 
           <div
             style={{
-              background:
-                '#fff',
+              background: '#fff',
               padding: 16,
               borderRadius: 16,
-              width:
-                'fit-content',
-              margin:
-                '20px auto',
+              width: 'fit-content',
+              margin: '20px auto',
             }}
           >
             <QRCodeSVG
               value={
-                session.qr_token ||
-                ''
+                session.qr_token || ''
               }
               size={220}
             />
           </div>
 
-
           <h1
             style={{
-              textAlign:
-                'center',
+              textAlign: 'center',
             }}
           >
             {seconds}s
           </h1>
 
-
           <p
             className="sub"
             style={{
-              textAlign:
-                'center',
+              textAlign: 'center',
             }}
           >
             QR refresh countdown
           </p>
 
-
           <p>
             <strong>
               Present:
             </strong>{' '}
-            {session.present ??
-              0}
+            {session.present ?? 0}
           </p>
-
 
           <button
             className="ghost"
             onClick={() =>
-              refresh(
-                session.id
-              )
+              refresh(session.id)
             }
           >
             Refresh QR
           </button>
 
-
           <button
             className="ghost"
             onClick={() =>
-              loadRoster(
-                session.id
-              )
+              loadRoster(session.id)
             }
           >
             Refresh present list
           </button>
-
 
           <button
             className="btn"
@@ -2531,21 +2212,14 @@ function StaffSession({
             Stop attendance
           </button>
 
-
           <SectionTitle>
-            Student attendance
-            list
+            Student attendance list
           </SectionTitle>
 
-
-          {roster.length ===
-          0 ? (
+          {roster.length === 0 ? (
             <Empty>
-              No students found
-              for this department
-              yet. Add students
-              under Student
-              Management.
+              No students found for
+              this department yet.
             </Empty>
           ) : (
             roster.map(row => (
@@ -2563,7 +2237,6 @@ function StaffSession({
                   </p>
                 </div>
 
-
                 <Tag
                   type={
                     row.status ===
@@ -2580,7 +2253,6 @@ function StaffSession({
         </>
       )}
 
-
       {message && (
         <p className="note">
           {message}
@@ -2593,9 +2265,7 @@ function StaffSession({
 
 /* FACULTY REPORTS */
 
-function StaffReports({
-  token,
-}) {
+function StaffReports({ token }) {
   const [sessions, setSessions] =
     useState([])
 
@@ -2621,14 +2291,11 @@ function StaffReports({
         setSessions(
           Array.isArray(data)
             ? data
-            : data.results ||
-              []
+            : data.results || []
         )
       )
       .catch(err =>
-        setError(
-          err.message
-        )
+        setError(err.message)
       )
   }, [token])
 
@@ -2637,13 +2304,10 @@ function StaffReports({
     setSelected(id)
     setReport(null)
 
-
     if (!id) return
-
 
     setLoading(true)
     setError('')
-
 
     try {
       setReport(
@@ -2653,9 +2317,7 @@ function StaffReports({
         )
       )
     } catch (err) {
-      setError(
-        err.message
-      )
+      setError(err.message)
     } finally {
       setLoading(false)
     }
@@ -2673,19 +2335,14 @@ function StaffReports({
           }
         )
 
-
       const blob =
         await response.blob()
 
       const url =
-        URL.createObjectURL(
-          blob
-        )
+        URL.createObjectURL(blob)
 
       const link =
-        document.createElement(
-          'a'
-        )
+        document.createElement('a')
 
       link.href = url
 
@@ -2694,13 +2351,9 @@ function StaffReports({
 
       link.click()
 
-      URL.revokeObjectURL(
-        url
-      )
+      URL.revokeObjectURL(url)
     } catch (err) {
-      setError(
-        err.message
-      )
+      setError(err.message)
     }
   }
 
@@ -2718,24 +2371,19 @@ function StaffReports({
           Attendance reports
         </h2>
 
-
         <label>
           Select session
         </label>
 
-
         <select
           value={selected}
           onChange={e =>
-            loadReport(
-              e.target.value
-            )
+            loadReport(e.target.value)
           }
         >
           <option value="">
             Choose a session
           </option>
-
 
           {sessions.map(item => (
             <option
@@ -2743,24 +2391,18 @@ function StaffReports({
               value={item.id}
             >
               {item.course} ·{' '}
-              {fmt(
-                item.started_at
-              )}
+              {fmt(item.started_at)}
             </option>
           ))}
         </select>
 
-
         <button
           className="btn"
           disabled={!selected}
-          onClick={
-            exportExcel
-          }
+          onClick={exportExcel}
         >
           Export Excel
         </button>
-
 
         {error && (
           <p className="bad-box">
@@ -2769,23 +2411,19 @@ function StaffReports({
         )}
       </div>
 
-
       {loading && (
         <Empty>
           Loading report...
         </Empty>
       )}
 
-
       {report && (
         <>
           <div className="card">
             <h3>
-              {report.session
-                ?.course ||
+              {report.session?.course ||
                 'Attendance report'}
             </h3>
-
 
             <p className="sub">
               {fmt(
@@ -2794,32 +2432,25 @@ function StaffReports({
               )}
             </p>
 
-
             <p>
               Total students:{' '}
               {rows.length}
             </p>
           </div>
 
-
           <SectionTitle>
             Attendance records
           </SectionTitle>
 
-
-          {rows.length ===
-          0 ? (
+          {rows.length === 0 ? (
             <Empty>
-              No students have
-              been entered for
-              this department.
+              No students have been
+              entered for this
+              department.
             </Empty>
           ) : (
             rows.map(
-              (
-                row,
-                index
-              ) => (
+              (row, index) => (
                 <div
                   className="card"
                   key={
@@ -2835,13 +2466,11 @@ function StaffReports({
                       `Student ${index + 1}`}
                   </strong>
 
-
                   <p className="sub">
                     {row.usn ||
                       row.roll_number ||
                       ''}
                   </p>
-
 
                   <Tag
                     type={
@@ -2865,7 +2494,7 @@ function StaffReports({
 }
 
 
-/* CLASSES AND TIMETABLE: LOCAL DEMO */
+/* CLASSES */
 
 const DEFAULT_CLASSES = [
   {
@@ -2903,7 +2532,6 @@ function StaffClasses() {
       )
     )
 
-
   const [selectedId, setSelectedId] =
     useState(null)
 
@@ -2922,7 +2550,6 @@ function StaffClasses() {
   const [usn, setUsn] =
     useState('')
 
-
   const [timetable, setTimetable] =
     useState(() =>
       readLocal(
@@ -2930,7 +2557,6 @@ function StaffClasses() {
         []
       )
     )
-
 
   const [day, setDay] =
     useState('Monday')
@@ -2945,14 +2571,11 @@ function StaffClasses() {
   const selected =
     classes.find(
       item =>
-        item.id ===
-        selectedId
+        item.id === selectedId
     )
 
 
-  function updateClasses(
-    next
-  ) {
+  function updateClasses(next) {
     setClasses(next)
 
     saveLocal(
@@ -2965,9 +2588,7 @@ function StaffClasses() {
   function addClass(e) {
     e.preventDefault()
 
-    if (!name.trim())
-      return
-
+    if (!name.trim()) return
 
     updateClasses([
       ...classes,
@@ -2983,7 +2604,6 @@ function StaffClasses() {
       },
     ])
 
-
     setName('')
     setFaculty('')
   }
@@ -2991,7 +2611,6 @@ function StaffClasses() {
 
   function addStudent(e) {
     e.preventDefault()
-
 
     if (
       !selected ||
@@ -3001,11 +2620,9 @@ function StaffClasses() {
       return
     }
 
-
     updateClasses(
       classes.map(item =>
-        item.id ===
-        selectedId
+        item.id === selectedId
           ? {
               ...item,
 
@@ -3013,12 +2630,9 @@ function StaffClasses() {
                 ...item.students,
 
                 {
-                  id:
-                    Date.now(),
-
+                  id: Date.now(),
                   name:
                     studentName.trim(),
-
                   usn:
                     usn.trim(),
                 },
@@ -3028,7 +2642,6 @@ function StaffClasses() {
       )
     )
 
-
     setStudentName('')
     setUsn('')
   }
@@ -3037,14 +2650,12 @@ function StaffClasses() {
   function addTimetable(e) {
     e.preventDefault()
 
-
     if (
       !subject.trim() ||
       !time.trim()
     ) {
       return
     }
-
 
     const next = [
       ...timetable,
@@ -3058,14 +2669,12 @@ function StaffClasses() {
       },
     ]
 
-
     setTimetable(next)
 
     saveLocal(
       'nexvia_timetable',
       next
     )
-
 
     setSubject('')
     setTime('')
@@ -3079,48 +2688,33 @@ function StaffClasses() {
           Classes management
         </h2>
 
-
         <p className="note">
           Class and timetable
           entries are saved in
           this browser only.
-          Use Student
-          Management for the
-          official database
-          student roster.
         </p>
 
-
-        <form
-          onSubmit={addClass}
-        >
+        <form onSubmit={addClass}>
           <label>
             Class name
           </label>
 
-
           <input
             value={name}
             onChange={e =>
-              setName(
-                e.target.value
-              )
+              setName(e.target.value)
             }
             required
           />
-
 
           <label>
             Semester
           </label>
 
-
           <select
             value={semester}
             onChange={e =>
-              setSemester(
-                e.target.value
-              )
+              setSemester(e.target.value)
             }
           >
             {[
@@ -3139,21 +2733,16 @@ function StaffClasses() {
             ))}
           </select>
 
-
           <label>
             Faculty
           </label>
 
-
           <input
             value={faculty}
             onChange={e =>
-              setFaculty(
-                e.target.value
-              )
+              setFaculty(e.target.value)
             }
           />
-
 
           <button className="btn">
             Add class
@@ -3176,22 +2765,17 @@ function StaffClasses() {
             {item.name}
           </strong>
 
-
           <p className="sub">
-            Semester{' '}
-            {item.semester} ·{' '}
+            Semester {item.semester} ·{' '}
             {item.faculty} ·{' '}
             {item.students.length}{' '}
             local demo students
           </p>
 
-
           <button
             className="ghost sm"
             onClick={() =>
-              setSelectedId(
-                item.id
-              )
+              setSelectedId(item.id)
             }
           >
             View class
@@ -3207,36 +2791,25 @@ function StaffClasses() {
               {selected.name}
             </h3>
 
-
             <button
               className="ghost sm"
               onClick={() =>
-                setSelectedId(
-                  null
-                )
+                setSelectedId(null)
               }
             >
               Close
             </button>
           </div>
 
-
           <form
-            onSubmit={
-              addStudent
-            }
+            onSubmit={addStudent}
           >
             <label>
               Student name
-              (local class
-              demo only)
             </label>
 
-
             <input
-              value={
-                studentName
-              }
+              value={studentName}
               onChange={e =>
                 setStudentName(
                   e.target.value
@@ -3245,43 +2818,30 @@ function StaffClasses() {
               required
             />
 
-
             <label>
               USN
             </label>
 
-
             <input
               value={usn}
               onChange={e =>
-                setUsn(
-                  e.target.value
-                )
+                setUsn(e.target.value)
               }
               required
             />
 
-
             <button className="btn">
-              Add to local
-              class
+              Add to local class
             </button>
           </form>
 
-
           <SectionTitle>
-            Local class
-            students
+            Local class students
           </SectionTitle>
-
 
           {selected.students.map(
             student => (
-              <p
-                key={
-                  student.id
-                }
-              >
+              <p key={student.id}>
                 {student.name} ·{' '}
                 {student.usn}
               </p>
@@ -3298,21 +2858,16 @@ function StaffClasses() {
 
       <div className="card">
         <form
-          onSubmit={
-            addTimetable
-          }
+          onSubmit={addTimetable}
         >
           <label>
             Day
           </label>
 
-
           <select
             value={day}
             onChange={e =>
-              setDay(
-                e.target.value
-              )
+              setDay(e.target.value)
             }
           >
             {[
@@ -3329,99 +2884,84 @@ function StaffClasses() {
             ))}
           </select>
 
-
           <label>
             Time
           </label>
 
-
           <input
             value={time}
             onChange={e =>
-              setTime(
-                e.target.value
-              )
+              setTime(e.target.value)
             }
             placeholder="10:00 AM - 11:00 AM"
             required
           />
 
-
           <label>
             Subject
           </label>
 
-
           <input
             value={subject}
             onChange={e =>
-              setSubject(
-                e.target.value
-              )
+              setSubject(e.target.value)
             }
             required
           />
 
-
           <button className="btn">
-            Add timetable
-            entry
+            Add timetable entry
           </button>
         </form>
       </div>
 
 
-      {timetable.map(
-        item => (
-          <div
-            className="card"
-            key={item.id}
-          >
-            <div className="row">
-              <div>
-                <strong>
-                  {item.subject}
-                </strong>
+      {timetable.map(item => (
+        <div
+          className="card"
+          key={item.id}
+        >
+          <div className="row">
+            <div>
+              <strong>
+                {item.subject}
+              </strong>
 
-                <p className="sub">
-                  {item.day} ·{' '}
-                  {item.time}
-                </p>
-              </div>
-
-
-              <button
-                className="ghost sm"
-                onClick={() => {
-                  const next =
-                    timetable.filter(
-                      row =>
-                        row.id !==
-                        item.id
-                    )
-
-                  setTimetable(
-                    next
-                  )
-
-                  saveLocal(
-                    'nexvia_timetable',
-                    next
-                  )
-                }}
-              >
-                Delete
-              </button>
+              <p className="sub">
+                {item.day} ·{' '}
+                {item.time}
+              </p>
             </div>
+
+            <button
+              className="ghost sm"
+              onClick={() => {
+                const next =
+                  timetable.filter(
+                    row =>
+                      row.id !==
+                      item.id
+                  )
+
+                setTimetable(next)
+
+                saveLocal(
+                  'nexvia_timetable',
+                  next
+                )
+              }}
+            >
+              Delete
+            </button>
           </div>
-        )
-      )}
+        </div>
+      ))}
     </>
   )
 }
 
 
-/* DEDICATED CAMPUSCARE STAFF PORTAL */
+/* CAMPUSCARE STAFF */
 
 function CampusCareClaims({
   token,
@@ -3453,7 +2993,6 @@ function CampusCareClaims({
       setLoading(true)
       setError('')
 
-
       try {
         const data =
           await call(
@@ -3461,17 +3000,13 @@ function CampusCareClaims({
             token
           )
 
-
         setItems(
           Array.isArray(data)
             ? data
-            : data.results ||
-              []
+            : data.results || []
         )
       } catch (err) {
-        setError(
-          err.message
-        )
+        setError(err.message)
       } finally {
         setLoading(false)
       }
@@ -3493,40 +3028,31 @@ function CampusCareClaims({
     setError('')
     setMessage('')
 
-
     try {
       await call(
         `/complaints/${item.id}/update/`,
         token,
         {
-          method:
-            'PATCH',
+          method: 'PATCH',
 
-          body:
-            JSON.stringify({
-              status,
+          body: JSON.stringify({
+            status,
 
-              response:
-                responses[
-                  item.id
-                ] ??
-                item.response ??
-                '',
-            }),
+            response:
+              responses[item.id] ??
+              item.response ??
+              '',
+          }),
         }
       )
-
 
       setMessage(
         `Claim #${item.id} updated to ${status}.`
       )
 
-
       await load()
     } catch (err) {
-      setError(
-        err.message
-      )
+      setError(err.message)
     } finally {
       setBusyId(null)
     }
@@ -3550,13 +3076,11 @@ function CampusCareClaims({
           CampusCare claims
         </h2>
 
-
         <p className="sub">
           Review student concerns,
-          assign action, and
-          resolve complaints.
+          assign action, and resolve
+          complaints.
         </p>
-
 
         <div className="row wrap">
           {[
@@ -3569,22 +3093,18 @@ function CampusCareClaims({
             <button
               key={value}
               className={
-                filter ===
-                value
+                filter === value
                   ? 'btn sm'
                   : 'ghost sm'
               }
               onClick={() =>
-                setFilter(
-                  value
-                )
+                setFilter(value)
               }
             >
               {value}
             </button>
           ))}
         </div>
-
 
         <button
           className="ghost sm"
@@ -3613,11 +3133,9 @@ function CampusCareClaims({
         <Empty>
           Loading claims...
         </Empty>
-      ) : filtered.length ===
-        0 ? (
+      ) : filtered.length === 0 ? (
         <Empty>
-          No claims in this
-          category.
+          No claims in this category.
         </Empty>
       ) : (
         filtered.map(item => (
@@ -3631,61 +3149,46 @@ function CampusCareClaims({
                 {item.category}
               </strong>
 
-
               <Tag>
                 {item.status}
               </Tag>
             </div>
 
-
             <p>
               {item.description}
             </p>
 
-
             <p className="sub">
               Anonymous claim ·
-              Student identity
-              protected
+              Student identity protected
             </p>
-
 
             <p className="sub">
               Raised:{' '}
-              {fmt(
-                item.raised_at
-              )}
+              {fmt(item.raised_at)}
             </p>
-
 
             <label>
               Response to student
             </label>
 
-
             <textarea
               rows="2"
               value={
-                responses[
-                  item.id
-                ] ??
+                responses[item.id] ??
                 item.response ??
                 ''
               }
               onChange={e =>
-                setResponses(
-                  old => ({
-                    ...old,
+                setResponses(old => ({
+                  ...old,
 
-                    [item.id]:
-                      e.target
-                        .value,
-                  })
-                )
+                  [item.id]:
+                    e.target.value,
+                }))
               }
               placeholder="Write an update or resolution..."
             />
-
 
             <div className="row wrap">
               <button
@@ -3704,7 +3207,6 @@ function CampusCareClaims({
                 Assign
               </button>
 
-
               <button
                 className="ghost sm"
                 disabled={
@@ -3720,7 +3222,6 @@ function CampusCareClaims({
               >
                 Start action
               </button>
-
 
               <button
                 className="btn sm"
@@ -3807,35 +3308,27 @@ function FacultyPortal({
       subtitle="Manage student records and attendance"
       onLogout={onLogout}
     >
-      {tab ===
-        'students' && (
+      {tab === 'students' && (
         <StaffStudents
           token={token}
         />
       )}
 
-
-      {tab ===
-        'attendance' && (
+      {tab === 'attendance' && (
         <StaffSession
           token={token}
         />
       )}
 
-
-      {tab ===
-        'classes' && (
+      {tab === 'classes' && (
         <StaffClasses />
       )}
 
-
-      {tab ===
-        'reports' && (
+      {tab === 'reports' && (
         <StaffReports
           token={token}
         />
       )}
-
 
       <BottomNav
         items={nav}
@@ -3865,12 +3358,10 @@ export default function App() {
       user: data.user,
     }
 
-
     saveLocal(
       'nexvia_auth',
       next
     )
-
 
     setAuth(next)
   }
