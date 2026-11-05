@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+﻿import { useCallback, useEffect, useRef, useState } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
 import { Html5Qrcode } from 'html5-qrcode'
 
@@ -55,7 +55,7 @@ const readLocal = (key, fallback) => {
 const saveLocal = (key, value) =>
   localStorage.setItem(key, JSON.stringify(value))
 
-const fmt = value => value ? new Date(value).toLocaleString() : '—'
+const fmt = value => value ? new Date(value).toLocaleString() : 'â€”'
 
 function Tag({ children, type = '' }) {
   return <span className={`tag ${type}`}>{children}</span>
@@ -77,7 +77,7 @@ function Shell({ title, subtitle, onLogout, children }) {
   return (
     <div className="app-shell">
       <header className="hero">
-        <div className="sub">NEXVIA · SMART CAMPUS</div>
+        <div className="sub">NEXVIA Â· SMART CAMPUS</div>
         <div className="row">
           <div>
             <h2>{title}</h2>
@@ -237,23 +237,23 @@ function StudentHome({ token, user }) {
     <>
       <div className="card">
         <div className="sub">STUDENT DASHBOARD</div>
-        <h2>Hello, {user?.name || 'Student'} 👋</h2>
+        <h2>Hello, {user?.name || 'Student'} ðŸ‘‹</h2>
         <p className="sub">{user?.department || 'ISE'} Department</p>
 
         <div className="row" style={{ marginTop: 20 }}>
           <div>
             <div className="sub">Attendance</div>
-            <h1>{loading ? '—' : `${percent}%`}</h1>
+            <h1>{loading ? 'â€”' : `${percent}%`}</h1>
           </div>
 
           <div>
             <div className="sub">Classes attended</div>
-            <h2>{loading ? '—' : `${present}/${total}`}</h2>
+            <h2>{loading ? 'â€”' : `${present}/${total}`}</h2>
           </div>
 
           <div>
             <div className="sub">Claims</div>
-            <h2>{loading ? '—' : claims.length}</h2>
+            <h2>{loading ? 'â€”' : claims.length}</h2>
           </div>
         </div>
       </div>
@@ -304,7 +304,7 @@ function StudentHome({ token, user }) {
           <div className="card" key={item.id}>
             <strong>{item.subject}</strong>
             <p className="sub">
-              {item.day} · {item.time}
+              {item.day} Â· {item.time}
             </p>
           </div>
         ))
@@ -435,12 +435,7 @@ function ScanTab({ token }) {
       // The browser opens its own Bluetooth chooser. The user cannot type
       // an arbitrary beacon ID into NEXVIA.
       const device = await navigator.bluetooth.requestDevice({
-        filters: [
-          {
-            name: BEACON_NAME,
-            services: [BEACON_SERVICE_UUID],
-          },
-        ],
+        acceptAllDevices: true,
         optionalServices: [BEACON_SERVICE_UUID],
       })
 
@@ -462,7 +457,7 @@ function ScanTab({ token }) {
       }
 
       setBeaconDevice(device)
-      setBeaconStatus('Verified ✓')
+      setBeaconStatus('Verified âœ“')
 
       return true
     } catch (err) {
@@ -590,7 +585,7 @@ function ScanTab({ token }) {
         throw new Error('Biometric verification was not completed.')
       }
 
-      setBiometricStatus('Verified ✓')
+      setBiometricStatus('Verified âœ“')
       return true
     } catch (err) {
       setBiometricStatus('Failed')
@@ -665,7 +660,7 @@ function ScanTab({ token }) {
 
         <p className="sub">
           Follow the required attendance sequence:
-          <strong> QR → NEXVIA Beacon → Biometric → Attendance</strong>.
+          <strong> QR â†’ NEXVIA Beacon â†’ Biometric â†’ Attendance</strong>.
         </p>
 
         <button
@@ -706,7 +701,7 @@ function ScanTab({ token }) {
                 <strong>1. Physical beacon</strong>
               </p>
               <p className="sub">
-                {beaconStatus === 'Verified ✓'
+                {beaconStatus === 'Verified âœ“'
                   ? 'NEXVIA-ISE-B204 verified.'
                   : 'Tap Verify Attendance and select the physical ESP32 beacon.'}
               </p>
@@ -715,7 +710,7 @@ function ScanTab({ token }) {
                 <strong>2. Biometric</strong>
               </p>
               <p className="sub">
-                {biometricStatus === 'Verified ✓'
+                {biometricStatus === 'Verified âœ“'
                   ? 'Device biometric verified.'
                   : 'Fingerprint / Face / device PIN will be requested after the beacon is verified.'}
               </p>
@@ -760,7 +755,7 @@ function ScanTab({ token }) {
 
         <Tag
           type={
-            beaconStatus === 'Verified ✓'
+            beaconStatus === 'Verified âœ“'
               ? 'ok'
               : beaconStatus === 'Failed'
                 ? 'bad'
@@ -789,7 +784,7 @@ function ScanTab({ token }) {
 
         <Tag
           type={
-            biometricStatus === 'Verified ✓'
+            biometricStatus === 'Verified âœ“'
               ? 'ok'
               : biometricStatus === 'Failed'
                 ? 'bad'
@@ -931,9 +926,9 @@ function Student({ token, user, onLogout }) {
   const [tab, setTab] = useState('home')
 
   const nav = [
-    { id: 'home', label: 'Home', icon: '⌂' },
-    { id: 'scan', label: 'Scan QR', icon: '▦' },
-    { id: 'care', label: 'CampusCare', icon: '♡' },
+    { id: 'home', label: 'Home', icon: 'âŒ‚' },
+    { id: 'scan', label: 'Scan QR', icon: 'â–¦' },
+    { id: 'care', label: 'CampusCare', icon: 'â™¡' },
   ]
 
   return (
@@ -1118,7 +1113,7 @@ function StaffStudents({ token }) {
             </div>
 
             <p className="sub">
-              USN: {student.id} · Department: {student.department}
+              USN: {student.id} Â· Department: {student.department}
             </p>
           </div>
         ))
@@ -1467,7 +1462,7 @@ function StaffReports({ token }) {
               key={item.id}
               value={item.id}
             >
-              {item.course} · {fmt(item.started_at)}
+              {item.course} Â· {fmt(item.started_at)}
             </option>
           ))}
         </select>
@@ -1748,7 +1743,7 @@ function StaffClasses() {
           <strong>{item.name}</strong>
 
           <p className="sub">
-            Semester {item.semester} · {item.faculty} ·{' '}
+            Semester {item.semester} Â· {item.faculty} Â·{' '}
             {item.students.length} local demo students
           </p>
 
@@ -1806,7 +1801,7 @@ function StaffClasses() {
 
           {selected.students.map(student => (
             <p key={student.id}>
-              {student.name} · {student.usn}
+              {student.name} Â· {student.usn}
             </p>
           ))}
         </div>
@@ -1866,7 +1861,7 @@ function StaffClasses() {
               <strong>{item.subject}</strong>
 
               <p className="sub">
-                {item.day} · {item.time}
+                {item.day} Â· {item.time}
               </p>
             </div>
 
@@ -2028,7 +2023,7 @@ function CampusCareClaims({ token }) {
           <div className="card" key={item.id}>
             <div className="row">
               <strong>
-                #{item.id} · {item.category}
+                #{item.id} Â· {item.category}
               </strong>
 
               <Tag>{item.status}</Tag>
@@ -2037,7 +2032,7 @@ function CampusCareClaims({ token }) {
             <p>{item.description}</p>
 
             <p className="sub">
-              Anonymous claim · Student identity protected
+              Anonymous claim Â· Student identity protected
             </p>
 
             <p className="sub">
@@ -2138,22 +2133,22 @@ function FacultyPortal({
     {
       id: 'students',
       label: 'Students',
-      icon: '♙',
+      icon: 'â™™',
     },
     {
       id: 'attendance',
       label: 'Attendance',
-      icon: '▦',
+      icon: 'â–¦',
     },
     {
       id: 'classes',
       label: 'Classes',
-      icon: '▤',
+      icon: 'â–¤',
     },
     {
       id: 'reports',
       label: 'Reports',
-      icon: '▥',
+      icon: 'â–¥',
     },
   ]
 
