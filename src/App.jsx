@@ -697,13 +697,9 @@ function ScanTab({ token }) {
        * acceptAllDevices allows Android Chrome
        * to display the Bluetooth device picker.
        */
-      const device =
-        await navigator.bluetooth.requestDevice({
-          acceptAllDevices: true,
-          optionalServices: [
-            BEACON_SERVICE_UUID,
-          ],
-        })
+      const device = await navigator.bluetooth.requestDevice({
+  filters: [{ services: [BEACON_SERVICE_UUID] }],
+})
 
       const name =
         device?.name || ''
