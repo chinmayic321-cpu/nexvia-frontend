@@ -845,21 +845,18 @@ function ScanTab({ token }) {
        * That allowed unrelated Bluetooth devices to
        * appear in the chooser.
        */
-      device =
-        await navigator.bluetooth.requestDevice({
-          filters: [
-            {
-              name: BEACON_NAME,
-            },
-            {
-              namePrefix: 'NEXVIA',
-            },
-          ],
+     device =
+  await navigator.bluetooth.requestDevice({
+    filters: [
+      {
+        namePrefix: 'NEXVIA',
+      },
+    ],
 
-          optionalServices: [
-            BEACON_SERVICE_UUID,
-          ],
-        })
+    optionalServices: [
+      BEACON_SERVICE_UUID,
+    ],
+  })
 
 
       if (!device) {
