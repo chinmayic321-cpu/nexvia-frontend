@@ -1,12 +1,14 @@
-﻿import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
 import { Html5Qrcode } from 'html5-qrcode'
 
 // Change this URL only when your backend tunnel changes.
 const API = 'https://nexvia-backend-awp6.onrender.com/api'
+
 const BEACON_ID = 'ISE-B204'
 const BEACON_NAME = 'NEXVIA-ISE-B204'
-const BEACON_SERVICE_UUID = '12345678-1234-1234-1234-123456789001'
+const BEACON_SERVICE_UUID =
+  '12345678-1234-1234-1234-123456789001'
 
 // The Django attendance endpoint currently expects an RSSI value.
 // Web Bluetooth does not reliably expose RSSI to a normal web page,
@@ -15,128 +17,226 @@ const BEACON_SERVICE_UUID = '12345678-1234-1234-1234-123456789001'
 // signal-strength value.
 const VERIFIED_BEACON_RSSI = -60
 
+
 async function call(path, token, options = {}) {
   const { raw = false, ...fetchOptions } = options
+
   const headers = {
     Accept: 'application/json',
-    ...(fetchOptions.body ? { 'Content-Type': 'application/json' } : {}),
+    ...(fetchOptions.body
+      ? { 'Content-Type': 'application/json' }
+      : {}),
     ...(fetchOptions.headers || {}),
   }
 
-  if (token) headers.Authorization = `Bearer ${token}`
+  if (token) {
+    headers.Authorization = `Bearer ${token}`
+  }
 
   let response
+
   try {
-    response = await fetch(`${API}${path}`, { ...fetchOptions, headers })
+    response = await fetch(`${API}${path}`, {
+      ...fetchOptions,
+      headers,
+    })
   } catch {
-    throw new Error('Cannot reach backend. Check Django and its Cloudflare tunnel.')
+    throw new Error(
+      'Cannot reach backend. Check Django and its Cloudflare tunnel.'
+    )
   }
 
   if (raw) {
-    if (!response.ok) throw new Error(`Request failed: ${response.status}`)
+    if (!response.ok) {
+      throw new Error(`Request failed: ${response.status}`)
+    }
+
     return response
   }
 
   const data = await response.json().catch(() => ({}))
+
   if (!response.ok) {
-    throw new Error(data.detail || data.error || `Request failed: ${response.status}`)
+    throw new Error(
+      data.detail ||
+        data.error ||
+        `Request failed: ${response.status}`
+    )
   }
+
   return data
 }
 
+
 const readLocal = (key, fallback) => {
   try {
-    return JSON.parse(localStorage.getItem(key)) ?? fallback
+    return (
+      JSON.parse(localStorage.getItem(key)) ??
+      fallback
+    )
   } catch {
     return fallback
   }
 }
 
-const saveLocal = (key, value) =>
-  localStorage.setItem(key, JSON.stringify(value))
 
-const fmt = value => value ? new Date(value).toLocaleString() : 'â€”'
+const saveLocal = (key, value) =>
+  localStorage.setItem(
+    key,
+    JSON.stringify(value)
+  )
+
+
+const fmt = value =>
+  value
+    ? new Date(value).toLocaleString()
+    : '—'
+
 
 function Tag({ children, type = '' }) {
-  return <span className={`tag ${type}`}>{children}</span>
+  return (
+    <span className={`tag ${type}`}>
+      {children}
+    </span>
+  )
 }
+
 
 function Empty({ children }) {
   return (
-    <div className="card sub" style={{ textAlign: 'center' }}>
+    <div
+      className="card sub"
+      style={{ textAlign: 'center' }}
+    >
       {children}
     </div>
   )
 }
 
+
 function SectionTitle({ children }) {
-  return <h3 style={{ marginTop: 20 }}>{children}</h3>
+  return (
+    <h3 style={{ marginTop: 20 }}>
+      {children}
+    </h3>
+  )
 }
 
-function Shell({ title, subtitle, onLogout, children }) {
+
+function Shell({
+  title,
+  subtitle,
+  onLogout,
+  children,
+}) {
   return (
     <div className="app-shell">
       <header className="hero">
-        <div className="sub">NEXVIA Â· SMART CAMPUS</div>
+        <div className="sub">
+          NEXVIA · SMART CAMPUS
+        </div>
+
         <div className="row">
           <div>
             <h2>{title}</h2>
-            <p className="sub">{subtitle}</p>
+
+            <p className="sub">
+              {subtitle}
+            </p>
           </div>
-          <button className="ghost sm" onClick={onLogout}>Logout</button>
+
+          <button
+            className="ghost sm"
+            onClick={onLogout}
+          >
+            Logout
+          </button>
         </div>
       </header>
+
       <main>{children}</main>
     </div>
   )
 }
 
-function BottomNav({ items, active, onChange }) {
+
+function BottomNav({
+  items,
+  active,
+  onChange,
+}) {
   return (
     <nav className="bottom-nav">
       {items.map(item => (
         <button
           key={item.id}
-          className={active === item.id ? 'active' : ''}
-          onClick={() => onChange(item.id)}
+          className={
+            active === item.id
+              ? 'active'
+              : ''
+          }
+          onClick={() =>
+            onChange(item.id)
+          }
         >
-          <span>{item.icon}</span>{item.label}
+          <span>{item.icon}</span>
+          {item.label}
         </button>
       ))}
     </nav>
   )
 }
 
+
 /* LOGIN */
 
 function Login({ onLogin }) {
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
-  const [role, setRole] = useState('student')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  const [username, setUsername] =
+    useState('')
+
+  const [password, setPassword] =
+    useState('')
+
+  const [role, setRole] =
+    useState('student')
+
+  const [loading, setLoading] =
+    useState(false)
+
+  const [error, setError] =
+    useState('')
+
 
   async function submit(e) {
     e.preventDefault()
+
     setLoading(true)
     setError('')
 
     try {
-      const data = await call('/login/', null, {
-        method: 'POST',
-        body: JSON.stringify({
-          id: username.trim(),
-          password,
-          role,
-        }),
-      })
+      const data = await call(
+        '/login/',
+        null,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            id: username.trim(),
+            password,
+            role,
+          }),
+        }
+      )
 
       if (!data.token || !data.user) {
-        throw new Error('Invalid login response from server.')
+        throw new Error(
+          'Invalid login response from server.'
+        )
       }
 
-      // Store username for biometric registration
-      localStorage.setItem('nexvia_username', username.trim())
+      localStorage.setItem(
+        'nexvia_username',
+        username.trim()
+      )
 
       onLogin(data)
     } catch (err) {
@@ -146,183 +246,394 @@ function Login({ onLogin }) {
     }
   }
 
+
   return (
     <div className="login-page">
       <div className="hero">
-        <div className="sub">SMART CAMPUS MANAGEMENT</div>
+        <div className="sub">
+          SMART CAMPUS MANAGEMENT
+        </div>
+
         <h1>NEXVIA</h1>
-        <p className="sub">One campus. One connected experience.</p>
+
+        <p className="sub">
+          One campus. One connected experience.
+        </p>
       </div>
 
-      <form className="card" onSubmit={submit}>
+      <form
+        className="card"
+        onSubmit={submit}
+      >
         <h2>Welcome back!</h2>
-        <p className="sub">Choose your portal to continue.</p>
+
+        <p className="sub">
+          Choose your portal to continue.
+        </p>
 
         <label>Login as</label>
-        <select value={role} onChange={e => setRole(e.target.value)}>
-          <option value="student">Student</option>
-          <option value="staff">Faculty Staff</option>
-          <option value="campuscare">CampusCare Staff</option>
+
+        <select
+          value={role}
+          onChange={e =>
+            setRole(e.target.value)
+          }
+        >
+          <option value="student">
+            Student
+          </option>
+
+          <option value="staff">
+            Faculty Staff
+          </option>
+
+          <option value="campuscare">
+            CampusCare Staff
+          </option>
         </select>
 
-        <label>{role === 'student' ? 'USN' : 'Staff ID'}</label>
+        <label>
+          {role === 'student'
+            ? 'USN'
+            : 'Staff ID'}
+        </label>
+
         <input
           value={username}
-          onChange={e => setUsername(e.target.value)}
+          onChange={e =>
+            setUsername(e.target.value)
+          }
           placeholder="Enter your ID"
           required
         />
 
         <label>Password</label>
+
         <input
           type="password"
           value={password}
-          onChange={e => setPassword(e.target.value)}
+          onChange={e =>
+            setPassword(e.target.value)
+          }
           placeholder="Enter your password"
           required
         />
 
-        {error && <p className="bad-box">{error}</p>}
+        {error && (
+          <p className="bad-box">
+            {error}
+          </p>
+        )}
 
-        <button className="btn" disabled={loading}>
-          {loading ? 'Signing in...' : 'Login'}
+        <button
+          className="btn"
+          disabled={loading}
+        >
+          {loading
+            ? 'Signing in...'
+            : 'Login'}
         </button>
       </form>
     </div>
   )
 }
 
+
 /* STUDENT HOME */
 
-function StudentHome({ token, user }) {
-  const [attendance, setAttendance] = useState([])
-  const [claims, setClaims] = useState([])
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(true)
+function StudentHome({
+  token,
+  user,
+}) {
+  const [attendance, setAttendance] =
+    useState([])
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    setError('')
+  const [claims, setClaims] =
+    useState([])
 
-    try {
-      const [a, c] = await Promise.all([
-        call('/attendance/my/', token),
-        call('/complaints/', token),
-      ])
+  const [error, setError] =
+    useState('')
 
-      setAttendance(Array.isArray(a) ? a : a.results || [])
-      setClaims(Array.isArray(c) ? c : c.results || [])
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setLoading(false)
-    }
-  }, [token])
+  const [loading, setLoading] =
+    useState(true)
+
+
+  const load = useCallback(
+    async () => {
+      setLoading(true)
+      setError('')
+
+      try {
+        const [a, c] =
+          await Promise.all([
+            call(
+              '/attendance/my/',
+              token
+            ),
+
+            call(
+              '/complaints/',
+              token
+            ),
+          ])
+
+        setAttendance(
+          Array.isArray(a)
+            ? a
+            : a.results || []
+        )
+
+        setClaims(
+          Array.isArray(c)
+            ? c
+            : c.results || []
+        )
+      } catch (err) {
+        setError(err.message)
+      } finally {
+        setLoading(false)
+      }
+    },
+    [token]
+  )
+
 
   useEffect(() => {
     load()
   }, [load])
 
-  const present = attendance.reduce(
-    (sum, item) => sum + Number(item.present || 0), 0
-  )
 
-  const total = attendance.reduce(
-    (sum, item) => sum + Number(item.total || 0), 0
-  )
+  const present =
+    attendance.reduce(
+      (sum, item) =>
+        sum +
+        Number(item.present || 0),
+      0
+    )
 
-  const percent = total ? Math.round(present / total * 100) : 0
+
+  const total =
+    attendance.reduce(
+      (sum, item) =>
+        sum +
+        Number(item.total || 0),
+      0
+    )
+
+
+  const percent = total
+    ? Math.round(
+        (present / total) * 100
+      )
+    : 0
+
 
   return (
     <>
       <div className="card">
-        <div className="sub">STUDENT DASHBOARD</div>
-        <h2>Hello, {user?.name || 'Student'} ðŸ‘‹</h2>
-        <p className="sub">{user?.department || 'ISE'} Department</p>
+        <div className="sub">
+          STUDENT DASHBOARD
+        </div>
 
-        <div className="row" style={{ marginTop: 20 }}>
+        <h2>
+          Hello,{' '}
+          {user?.name || 'Student'} 👋
+        </h2>
+
+        <p className="sub">
+          {user?.department ||
+            'ISE'} Department
+        </p>
+
+        <div
+          className="row"
+          style={{ marginTop: 20 }}
+        >
           <div>
-            <div className="sub">Attendance</div>
-            <h1>{loading ? 'â€”' : `${percent}%`}</h1>
+            <div className="sub">
+              Attendance
+            </div>
+
+            <h1>
+              {loading
+                ? '—'
+                : `${percent}%`}
+            </h1>
           </div>
 
           <div>
-            <div className="sub">Classes attended</div>
-            <h2>{loading ? 'â€”' : `${present}/${total}`}</h2>
+            <div className="sub">
+              Classes attended
+            </div>
+
+            <h2>
+              {loading
+                ? '—'
+                : `${present}/${total}`}
+            </h2>
           </div>
 
           <div>
-            <div className="sub">Claims</div>
-            <h2>{loading ? 'â€”' : claims.length}</h2>
+            <div className="sub">
+              Claims
+            </div>
+
+            <h2>
+              {loading
+                ? '—'
+                : claims.length}
+            </h2>
           </div>
         </div>
       </div>
 
-      {error && <p className="bad-box">{error}</p>}
 
-      <SectionTitle>Subject-wise attendance</SectionTitle>
-
-      {loading ? (
-        <Empty>Loading attendance...</Empty>
-      ) : attendance.length === 0 ? (
-        <Empty>No attendance records available.</Empty>
-      ) : (
-        attendance.map((item, index) => {
-          const p = Number(
-            item.percent ?? (
-              item.total ? item.present / item.total * 100 : 0
-            )
-          )
-
-          return (
-            <div className="card" key={item.id || item.course || index}>
-              <div className="row">
-                <strong>{item.course || item.subject || 'Subject'}</strong>
-                <Tag type={p >= 75 ? 'ok' : 'bad'}>
-                  {Math.round(p)}%
-                </Tag>
-              </div>
-
-              <p className="sub">
-                {item.present || 0} / {item.total || 0} classes attended
-              </p>
-
-              <div className="bar">
-                <div style={{ width: `${Math.min(100, p)}%` }} />
-              </div>
-            </div>
-          )
-        })
+      {error && (
+        <p className="bad-box">
+          {error}
+        </p>
       )}
 
-      <SectionTitle>Timetable</SectionTitle>
 
-      {readLocal('nexvia_timetable', []).length === 0 ? (
-        <Empty>No timetable entries added yet.</Empty>
+      <SectionTitle>
+        Subject-wise attendance
+      </SectionTitle>
+
+
+      {loading ? (
+        <Empty>
+          Loading attendance...
+        </Empty>
+      ) : attendance.length === 0 ? (
+        <Empty>
+          No attendance records available.
+        </Empty>
       ) : (
-        readLocal('nexvia_timetable', []).map(item => (
-          <div className="card" key={item.id}>
-            <strong>{item.subject}</strong>
+        attendance.map(
+          (item, index) => {
+            const p = Number(
+              item.percent ??
+                (
+                  item.total
+                    ? (
+                        item.present /
+                        item.total
+                      ) * 100
+                    : 0
+                )
+            )
+
+            return (
+              <div
+                className="card"
+                key={
+                  item.id ||
+                  item.course ||
+                  index
+                }
+              >
+                <div className="row">
+                  <strong>
+                    {item.course ||
+                      item.subject ||
+                      'Subject'}
+                  </strong>
+
+                  <Tag
+                    type={
+                      p >= 75
+                        ? 'ok'
+                        : 'bad'
+                    }
+                  >
+                    {Math.round(p)}%
+                  </Tag>
+                </div>
+
+                <p className="sub">
+                  {item.present || 0} /{' '}
+                  {item.total || 0}{' '}
+                  classes attended
+                </p>
+
+                <div className="bar">
+                  <div
+                    style={{
+                      width: `${Math.min(
+                        100,
+                        p
+                      )}%`,
+                    }}
+                  />
+                </div>
+              </div>
+            )
+          }
+        )
+      )}
+
+
+      <SectionTitle>
+        Timetable
+      </SectionTitle>
+
+
+      {readLocal(
+        'nexvia_timetable',
+        []
+      ).length === 0 ? (
+        <Empty>
+          No timetable entries added yet.
+        </Empty>
+      ) : (
+        readLocal(
+          'nexvia_timetable',
+          []
+        ).map(item => (
+          <div
+            className="card"
+            key={item.id}
+          >
+            <strong>
+              {item.subject}
+            </strong>
+
             <p className="sub">
-              {item.day} Â· {item.time}
+              {item.day} · {item.time}
             </p>
           </div>
         ))
       )}
 
-      <SectionTitle>Attendance</SectionTitle>
+
+      <SectionTitle>
+        Attendance
+      </SectionTitle>
+
 
       <div className="card">
-        <h3>QR + Beacon + Biometric</h3>
+        <h3>
+          QR + Beacon + Biometric
+        </h3>
+
         <p className="sub">
-          Open <strong>Scan QR</strong> to complete attendance.
-          Attendance is accepted only after the physical NEXVIA beacon
-          and your device biometric are verified.
+          Open{' '}
+          <strong>Scan QR</strong>{' '}
+          to complete attendance.
+          Attendance is accepted only
+          after the physical NEXVIA
+          beacon and your device
+          biometric are verified.
         </p>
 
         <button
           className="btn"
-          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          onClick={() =>
+            window.scrollTo({
+              top: 0,
+              behavior: 'smooth',
+            })
+          }
         >
           Go to Scan QR
         </button>
@@ -331,124 +642,347 @@ function StudentHome({ token, user }) {
   )
 }
 
+
 /* QR CAMERA */
 
-function QRScanner({ onScan, onClose }) {
-  const [error, setError] = useState('')
+function QRScanner({
+  onScan,
+  onClose,
+}) {
+  const [error, setError] =
+    useState('')
+
 
   useEffect(() => {
     let mounted = true
-    const instance = new Html5Qrcode('nexvia-qr-reader')
 
-    instance.start(
-      { facingMode: 'environment' },
-      { fps: 10, qrbox: { width: 220, height: 220 } },
-      text => {
-        if (!mounted) return
-        onScan(text)
-        instance.stop().catch(() => {})
-      },
-      () => {}
-    ).catch(err => {
-      if (mounted) setError(err.message || 'Camera could not start.')
-    })
+    const instance =
+      new Html5Qrcode(
+        'nexvia-qr-reader'
+      )
+
+
+    instance
+      .start(
+        { facingMode: 'environment' },
+
+        {
+          fps: 10,
+          qrbox: {
+            width: 220,
+            height: 220,
+          },
+        },
+
+        text => {
+          if (!mounted) return
+
+          onScan(text)
+
+          instance
+            .stop()
+            .catch(() => {})
+        },
+
+        () => {}
+      )
+      .catch(err => {
+        if (mounted) {
+          setError(
+            err.message ||
+              'Camera could not start.'
+          )
+        }
+      })
+
 
     return () => {
       mounted = false
-      if (instance.isScanning) instance.stop().catch(() => {})
+
+      if (instance.isScanning) {
+        instance
+          .stop()
+          .catch(() => {})
+      }
     }
   }, [onScan])
+
 
   return (
     <div className="card">
       <div className="row">
-        <h3>Scan QR code</h3>
-        <button className="ghost sm" onClick={onClose}>
+        <h3>
+          Scan QR code
+        </h3>
+
+        <button
+          className="ghost sm"
+          onClick={onClose}
+        >
           Close
         </button>
       </div>
 
       <div id="nexvia-qr-reader" />
 
-      {error && <p className="bad-box">{error}</p>}
+      {error && (
+        <p className="bad-box">
+          {error}
+        </p>
+      )}
     </div>
   )
 }
 
+
 /* STUDENT QR ATTENDANCE */
 
 function ScanTab({ token }) {
-  const [camera, setCamera] = useState(false)
-  const [qr, setQr] = useState('')
-  const [message, setMessage] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [beaconStatus, setBeaconStatus] = useState('Not verified')
-  const [biometricStatus, setBiometricStatus] = useState('Not verified')
-  const [beaconDevice, setBeaconDevice] = useState(null)
+  const [camera, setCamera] =
+    useState(false)
 
-  const handleScan = useCallback(value => {
-    setQr(value)
-    setCamera(false)
-    setMessage('')
-    setBeaconStatus('Not verified')
-    setBiometricStatus('Not verified')
-    setBeaconDevice(null)
-  }, [])
+  const [qr, setQr] =
+    useState('')
+
+  const [message, setMessage] =
+    useState('')
+
+  const [busy, setBusy] =
+    useState(false)
+
+  const [beaconStatus, setBeaconStatus] =
+    useState('Not verified')
+
+  const [biometricStatus, setBiometricStatus] =
+    useState('Not verified')
+
+  const [beaconDevice, setBeaconDevice] =
+    useState(null)
+
+
+  const handleScan =
+    useCallback(value => {
+      setQr(value)
+      setCamera(false)
+      setMessage('')
+      setBeaconStatus(
+        'Not verified'
+      )
+      setBiometricStatus(
+        'Not verified'
+      )
+      setBeaconDevice(null)
+    }, [])
+
 
   function isBluetoothSupported() {
     return (
-      typeof navigator !== 'undefined' &&
+      typeof navigator !==
+        'undefined' &&
       'bluetooth' in navigator &&
-      typeof navigator.bluetooth?.requestDevice === 'function'
+      typeof navigator.bluetooth
+        ?.requestDevice ===
+        'function'
     )
   }
+
 
   function isWebAuthnSupported() {
     return (
-      typeof window !== 'undefined' &&
+      typeof window !==
+        'undefined' &&
       !!window.PublicKeyCredential &&
       !!navigator.credentials &&
-      typeof navigator.credentials.create === 'function' &&
-      typeof navigator.credentials.get === 'function'
+      typeof navigator.credentials
+        .create === 'function' &&
+      typeof navigator.credentials
+        .get === 'function'
     )
   }
 
+
+  /*
+   * FINAL PHYSICAL ESP32 BLE VERIFICATION
+   *
+   * Important:
+   * - Only NEXVIA devices are shown.
+   * - The browser connects to the actual ESP32 GATT server.
+   * - The NEXVIA service UUID is explicitly checked.
+   * - No manual RSSI value is accepted from the student.
+   * - No Android Settings pairing is required.
+   */
   async function verifyPhysicalBeacon() {
     setMessage('')
-    setBeaconStatus('Waiting for beacon selection...')
+    setBeaconStatus(
+      'Waiting for NEXVIA beacon selection...'
+    )
 
     if (!window.isSecureContext) {
       setBeaconStatus('Failed')
+
       throw new Error(
         'Beacon verification requires HTTPS. Open the NEXVIA Vercel link on your phone.'
       )
     }
 
+
     if (!isBluetoothSupported()) {
       setBeaconStatus('Failed')
+
       throw new Error(
         'Web Bluetooth is not available in this browser. Use Chrome on Android for the physical ESP32 beacon verification.'
       )
     }
 
+
+    let device = null
+
+
     try {
-      // The browser opens its own Bluetooth chooser. The user cannot type
-      // an arbitrary beacon ID into NEXVIA.
-      const device = await navigator.bluetooth.requestDevice({
-        acceptAllDevices: true,
-        optionalServices: [BEACON_SERVICE_UUID],
-      })
+      /*
+       * IMPORTANT:
+       * Do NOT use acceptAllDevices here.
+       * That allowed unrelated Bluetooth devices to
+       * appear in the chooser.
+       */
+      device =
+        await navigator.bluetooth.requestDevice({
+          filters: [
+            {
+              name: BEACON_NAME,
+            },
+            {
+              namePrefix: 'NEXVIA',
+            },
+          ],
+
+          optionalServices: [
+            BEACON_SERVICE_UUID,
+          ],
+        })
+
 
       if (!device) {
-        throw new Error('No NEXVIA beacon was selected.')
+        throw new Error(
+          'No NEXVIA beacon was selected.'
+        )
       }
 
-      setBeaconStatus('Connecting to NEXVIA beacon...')
 
-      const server = await device.gatt.connect()
-      const service = await server.getPrimaryService(
-        BEACON_SERVICE_UUID
+      setBeaconStatus(
+        'NEXVIA beacon selected. Connecting...'
       )
+
+
+      /*
+       * If Chrome already has an old GATT connection,
+       * disconnect it first so we start clean.
+       */
+      try {
+        if (
+          device.gatt &&
+          device.gatt.connected
+        ) {
+          device.gatt.disconnect()
+        }
+      } catch {
+        // Ignore stale disconnect errors.
+      }
+
+
+      /*
+       * Android Chrome can need a short pause after
+       * the Bluetooth chooser closes.
+       */
+      await new Promise(
+        resolve =>
+          setTimeout(resolve, 700)
+      )
+
+
+      if (!device.gatt) {
+        throw new Error(
+          'Chrome found the NEXVIA beacon, but the device does not expose a GATT connection.'
+        )
+      }
+
+
+      setBeaconStatus(
+        'Connecting to ESP32 GATT server...'
+      )
+
+
+      const server =
+        await device.gatt.connect()
+
+
+      if (
+        !server ||
+        !server.connected
+      ) {
+        throw new Error(
+          'The NEXVIA beacon was selected, but the Bluetooth GATT connection could not be established.'
+        )
+      }
+
+
+      setBeaconStatus(
+        'Connected. Checking NEXVIA service...'
+      )
+
+
+      /*
+       * Give the ESP32 a short moment to
+       * respond to service discovery.
+       */
+      await new Promise(
+        resolve =>
+          setTimeout(resolve, 500)
+      )
+
+
+      let service = null
+
+
+      try {
+        service =
+          await server.getPrimaryService(
+            BEACON_SERVICE_UUID
+          )
+      } catch (serviceError) {
+        console.error(
+          'NEXVIA service discovery failed:',
+          serviceError
+        )
+
+        /*
+         * Some Android/Chrome combinations are
+         * more reliable when asking for the
+         * complete primary-service list.
+         */
+        const services =
+          await server.getPrimaryServices()
+
+
+        service =
+          services.find(
+            item =>
+              String(
+                item.uuid
+              ).toLowerCase() ===
+              String(
+                BEACON_SERVICE_UUID
+              ).toLowerCase()
+          )
+
+
+        if (!service) {
+          throw new Error(
+            'The ESP32 connected, but Chrome could not find the NEXVIA service UUID.'
+          )
+        }
+      }
+
 
       if (!service) {
         throw new Error(
@@ -456,100 +990,205 @@ function ScanTab({ token }) {
         )
       }
 
+
+      /*
+       * The service itself is enough for this
+       * project. We do not need to read/write a
+       * characteristic.
+       */
       setBeaconDevice(device)
-      setBeaconStatus('Verified âœ“')
+
+      setBeaconStatus(
+        'Verified ✓'
+      )
+
 
       return true
     } catch (err) {
+      console.error(
+        'NEXVIA BLE verification error:',
+        err
+      )
+
       setBeaconStatus('Failed')
 
-      if (err?.name === 'NotFoundError') {
-        throw new Error('Beacon selection was cancelled.')
+
+      if (
+        err?.name ===
+        'NotFoundError'
+      ) {
+        throw new Error(
+          'Beacon selection was cancelled.'
+        )
       }
 
-      throw err
+
+      if (
+        err?.name ===
+        'NetworkError'
+      ) {
+        throw new Error(
+          'Chrome found the NEXVIA beacon but could not connect to its GATT server. Keep the ESP32 powered on and close to the phone, then try again.'
+        )
+      }
+
+
+      if (
+        err?.name ===
+        'NotSupportedError'
+      ) {
+        throw new Error(
+          'This Android browser does not support the required Bluetooth GATT operation.'
+        )
+      }
+
+
+      if (
+        err?.name ===
+        'SecurityError'
+      ) {
+        throw new Error(
+          'Bluetooth access was blocked by the browser. Open NEXVIA using the HTTPS Vercel link and allow Bluetooth access.'
+        )
+      }
+
+
+      if (
+        err?.name ===
+        'InvalidStateError'
+      ) {
+        throw new Error(
+          'The Bluetooth connection was in an invalid state. Turn the ESP32 off and on once, then try again.'
+        )
+      }
+
+
+      throw new Error(
+        err?.message ||
+          'Could not connect to the NEXVIA beacon.'
+      )
     }
   }
 
+
   async function verifyBiometric() {
     setMessage('')
-    setBiometricStatus('Waiting for biometric...')
+    setBiometricStatus(
+      'Waiting for biometric...'
+    )
+
 
     if (!window.isSecureContext) {
       setBiometricStatus('Failed')
+
       throw new Error(
         'Biometric verification requires HTTPS. Open the NEXVIA Vercel link on your phone.'
       )
     }
 
+
     if (!isWebAuthnSupported()) {
       setBiometricStatus('Failed')
+
       throw new Error(
         'Device biometric authentication is not supported in this browser.'
       )
     }
 
+
     const username =
-      localStorage.getItem('nexvia_username') ||
+      localStorage.getItem(
+        'nexvia_username'
+      ) ||
       'nexvia-student'
 
+
     let storedCredential =
-      localStorage.getItem('nexvia_biometric_credential')
+      localStorage.getItem(
+        'nexvia_biometric_credential'
+      )
+
 
     try {
-      // First use on this device: create a platform credential.
-      // Android may show fingerprint, face unlock, PIN, or the device's
-      // configured screen lock depending on the phone.
+      /*
+       * First use on this device:
+       * create a platform credential.
+       */
       if (!storedCredential) {
-        const userId = new TextEncoder().encode(username)
+        const userId =
+          new TextEncoder().encode(
+            username
+          )
 
-        const created = await navigator.credentials.create({
-          publicKey: {
-            challenge: crypto.getRandomValues(
-              new Uint8Array(32)
-            ),
 
-            rp: {
-              name: 'NEXVIA Smart Campus',
-              id: window.location.hostname,
-            },
+        const created =
+          await navigator.credentials.create(
+            {
+              publicKey: {
+                challenge:
+                  crypto.getRandomValues(
+                    new Uint8Array(32)
+                  ),
 
-            user: {
-              id: userId,
-              name: username,
-              displayName: username,
-            },
+                rp: {
+                  name:
+                    'NEXVIA Smart Campus',
 
-            pubKeyCredParams: [
-              {
-                type: 'public-key',
-                alg: -7,
+                  id:
+                    window.location.hostname,
+                },
+
+                user: {
+                  id: userId,
+                  name: username,
+                  displayName:
+                    username,
+                },
+
+                pubKeyCredParams: [
+                  {
+                    type: 'public-key',
+                    alg: -7,
+                  },
+                  {
+                    type: 'public-key',
+                    alg: -257,
+                  },
+                ],
+
+                authenticatorSelection: {
+                  authenticatorAttachment:
+                    'platform',
+
+                  userVerification:
+                    'required',
+                },
+
+                timeout: 60000,
+
+                attestation:
+                  'none',
               },
-              {
-                type: 'public-key',
-                alg: -257,
-              },
-            ],
+            }
+          )
 
-            authenticatorSelection: {
-              authenticatorAttachment: 'platform',
-              userVerification: 'required',
-            },
-
-            timeout: 60000,
-            attestation: 'none',
-          },
-        })
 
         if (!created) {
-          throw new Error('Biometric registration was not completed.')
+          throw new Error(
+            'Biometric registration was not completed.'
+          )
         }
 
-        storedCredential = btoa(
-          String.fromCharCode(
-            ...new Uint8Array(created.rawId)
+
+        storedCredential =
+          btoa(
+            String.fromCharCode(
+              ...new Uint8Array(
+                created.rawId
+              )
+            )
           )
-        )
+
 
         localStorage.setItem(
           'nexvia_biometric_credential',
@@ -557,76 +1196,135 @@ function ScanTab({ token }) {
         )
       }
 
-      const credentialId = Uint8Array.from(
-        atob(storedCredential),
-        c => c.charCodeAt(0)
-      )
 
-      // Second step: require the device's user verification.
-      const verified = await navigator.credentials.get({
-        publicKey: {
-          challenge: crypto.getRandomValues(
-            new Uint8Array(32)
-          ),
+      const credentialId =
+        Uint8Array.from(
+          atob(storedCredential),
+          c =>
+            c.charCodeAt(0)
+        )
 
-          allowCredentials: [
-            {
-              type: 'public-key',
-              id: credentialId,
+
+      /*
+       * Second step:
+       * require device user verification.
+       */
+      const verified =
+        await navigator.credentials.get(
+          {
+            publicKey: {
+              challenge:
+                crypto.getRandomValues(
+                  new Uint8Array(32)
+                ),
+
+              allowCredentials: [
+                {
+                  type:
+                    'public-key',
+
+                  id:
+                    credentialId,
+                },
+              ],
+
+              userVerification:
+                'required',
+
+              timeout: 60000,
             },
-          ],
+          }
+        )
 
-          userVerification: 'required',
-          timeout: 60000,
-        },
-      })
 
       if (!verified) {
-        throw new Error('Biometric verification was not completed.')
+        throw new Error(
+          'Biometric verification was not completed.'
+        )
       }
 
-      setBiometricStatus('Verified âœ“')
+
+      setBiometricStatus(
+        'Verified ✓'
+      )
+
       return true
     } catch (err) {
       setBiometricStatus('Failed')
 
-      if (err?.name === 'NotAllowedError') {
+
+      if (
+        err?.name ===
+        'NotAllowedError'
+      ) {
         throw new Error(
           'Biometric verification was cancelled or not completed.'
         )
       }
 
+
       throw err
     }
   }
 
+
   async function verifyAndMarkAttendance() {
     if (!qr) {
-      setMessage('Please scan the faculty QR code first.')
+      setMessage(
+        'Please scan the faculty QR code first.'
+      )
+
       return
     }
 
+
     setBusy(true)
     setMessage('')
-    setBeaconStatus('Not verified')
-    setBiometricStatus('Not verified')
+    setBeaconStatus(
+      'Not verified'
+    )
+    setBiometricStatus(
+      'Not verified'
+    )
+
 
     try {
-      // STEP 1: Physical ESP32 beacon.
+      /*
+       * STEP 1:
+       * Verify the real physical ESP32 beacon.
+       */
       await verifyPhysicalBeacon()
 
-      // STEP 2: Device biometric.
+
+      /*
+       * STEP 2:
+       * Verify device biometric.
+       */
       await verifyBiometric()
 
-      // STEP 3: Only now send attendance to Django.
-      const result = await call('/attendance/mark/', token, {
-        method: 'POST',
-        body: JSON.stringify({
-          qr_token: qr,
-          beacon_id: BEACON_ID,
-          rssi: VERIFIED_BEACON_RSSI,
-        }),
-      })
+
+      /*
+       * STEP 3:
+       * Only after both checks succeed,
+       * send attendance to Django.
+       */
+      const result =
+        await call(
+          '/attendance/mark/',
+          token,
+          {
+            method: 'POST',
+
+            body: JSON.stringify({
+              qr_token: qr,
+              beacon_id:
+                BEACON_ID,
+              rssi:
+                VERIFIED_BEACON_RSSI,
+            }),
+          }
+        )
+
 
       setMessage(
         result.message ||
@@ -638,89 +1336,141 @@ function ScanTab({ token }) {
           'Attendance verification failed.'
       )
     } finally {
-      // Disconnect after the attendance attempt so the next attempt
-      // starts with a fresh physical-beacon verification.
+      /*
+       * Disconnect after the attempt.
+       */
       try {
-        if (beaconDevice?.gatt?.connected) {
+        if (
+          beaconDevice?.gatt
+            ?.connected
+        ) {
           beaconDevice.gatt.disconnect()
         }
       } catch {
         // Ignore disconnect errors.
       }
 
+
       setBeaconDevice(null)
       setBusy(false)
     }
   }
 
+
   return (
     <>
       <div className="card">
-        <h2>Scan attendance QR</h2>
+        <h2>
+          Scan attendance QR
+        </h2>
+
 
         <p className="sub">
-          Follow the required attendance sequence:
-          <strong> QR â†’ NEXVIA Beacon â†’ Biometric â†’ Attendance</strong>.
+          Follow the required attendance
+          sequence:
+
+          <strong>
+            {' '}
+            QR → NEXVIA Beacon →
+            Biometric → Attendance
+          </strong>.
         </p>
+
 
         <button
           className="btn"
-          onClick={() => setCamera(true)}
+          onClick={() =>
+            setCamera(true)
+          }
           disabled={busy}
         >
           Open camera scanner
         </button>
 
+
         {camera && (
           <QRScanner
             onScan={handleScan}
-            onClose={() => setCamera(false)}
+            onClose={() =>
+              setCamera(false)
+            }
           />
         )}
+
 
         {qr && (
           <div className="card">
             <p className="ok-box">
-              QR code scanned successfully.
+              QR code scanned
+              successfully.
             </p>
 
+
             <p className="sub">
-              QR token is ready. The manual beacon/RSSI controls have
-              been removed.
+              QR token is ready.
+              The manual beacon/RSSI
+              controls have been
+              removed.
             </p>
+
 
             <div
               style={{
                 marginTop: 16,
                 padding: 14,
                 borderRadius: 12,
-                border: '1px solid #ddd',
+                border:
+                  '1px solid #ddd',
               }}
             >
-              <p style={{ marginTop: 0 }}>
-                <strong>1. Physical beacon</strong>
+              <p
+                style={{
+                  marginTop: 0,
+                }}
+              >
+                <strong>
+                  1. Physical beacon
+                </strong>
               </p>
+
+
               <p className="sub">
-                {beaconStatus === 'Verified âœ“'
+                {beaconStatus ===
+                'Verified ✓'
                   ? 'NEXVIA-ISE-B204 verified.'
                   : 'Tap Verify Attendance and select the physical ESP32 beacon.'}
               </p>
 
-              <p style={{ marginBottom: 0 }}>
-                <strong>2. Biometric</strong>
+
+              <p
+                style={{
+                  marginBottom: 0,
+                }}
+              >
+                <strong>
+                  2. Biometric
+                </strong>
               </p>
+
+
               <p className="sub">
-                {biometricStatus === 'Verified âœ“'
+                {biometricStatus ===
+                'Verified ✓'
                   ? 'Device biometric verified.'
                   : 'Fingerprint / Face / device PIN will be requested after the beacon is verified.'}
               </p>
             </div>
 
+
             <button
               className="btn"
               disabled={busy}
-              onClick={verifyAndMarkAttendance}
-              style={{ marginTop: 16 }}
+              onClick={
+                verifyAndMarkAttendance
+              }
+              style={{
+                marginTop: 16,
+              }}
             >
               {busy
                 ? 'Verifying...'
@@ -729,11 +1479,16 @@ function ScanTab({ token }) {
           </div>
         )}
 
+
         {message && (
           <p
             className={
-              message.toLowerCase().includes('success') ||
-              message.toLowerCase().includes('marked')
+              message
+                .toLowerCase()
+                .includes('success') ||
+              message
+                .toLowerCase()
+                .includes('marked')
                 ? 'ok-box'
                 : 'bad-box'
             }
@@ -743,122 +1498,216 @@ function ScanTab({ token }) {
         )}
       </div>
 
+
       <div className="card">
-        <h3>Physical proximity verification</h3>
+        <h3>
+          Physical proximity
+          verification
+        </h3>
+
 
         <p className="sub">
-          NEXVIA now checks the real ESP32 device
-          <strong> NEXVIA-ISE-B204</strong> through its Bluetooth
-          service. There is no manual RSSI slider and the student
-          cannot enter or change the beacon ID.
+          NEXVIA now checks the real
+          ESP32 device
+          <strong>
+            {' '}
+            NEXVIA-ISE-B204
+          </strong>{' '}
+          through its Bluetooth
+          service. There is no
+          manual RSSI slider and
+          the student cannot enter
+          or change the beacon ID.
         </p>
+
 
         <Tag
           type={
-            beaconStatus === 'Verified âœ“'
+            beaconStatus ===
+            'Verified ✓'
               ? 'ok'
-              : beaconStatus === 'Failed'
+              : beaconStatus ===
+                'Failed'
                 ? 'bad'
                 : ''
           }
         >
-          Beacon: {beaconStatus}
+          Beacon:{' '}
+          {beaconStatus}
         </Tag>
 
-        <p className="sub" style={{ marginTop: 12 }}>
-          Note: a normal browser can verify the physical BLE device
-          and its service, but it does not reliably expose real RSSI
-          distance measurements. The Django request therefore receives
-          the fixed verified-demo RSSI only after the physical beacon
-          has been successfully verified.
+
+        <p
+          className="sub"
+          style={{
+            marginTop: 12,
+          }}
+        >
+          Note: a normal browser
+          can verify the physical
+          BLE device and its service,
+          but it does not reliably
+          expose real RSSI distance
+          measurements. The Django
+          request therefore receives
+          the fixed verified-demo
+          RSSI only after the
+          physical beacon has been
+          successfully verified.
         </p>
       </div>
 
+
       <div className="card">
-        <h3>Device biometric</h3>
+        <h3>
+          Device biometric
+        </h3>
+
 
         <p className="sub">
-          After the physical beacon is verified, NEXVIA requests
-          platform user verification from this device.
+          After the physical beacon
+          is verified, NEXVIA
+          requests platform user
+          verification from this
+          device.
         </p>
+
 
         <Tag
           type={
-            biometricStatus === 'Verified âœ“'
+            biometricStatus ===
+            'Verified ✓'
               ? 'ok'
-              : biometricStatus === 'Failed'
+              : biometricStatus ===
+                'Failed'
                 ? 'bad'
                 : ''
           }
         >
-          Biometric: {biometricStatus}
+          Biometric:{' '}
+          {biometricStatus}
         </Tag>
       </div>
     </>
   )
 }
 
+
 /* STUDENT CAMPUSCARE */
 
 function StudentCare({ token }) {
-  const [items, setItems] = useState([])
-  const [category, setCategory] = useState('Infrastructure')
-  const [description, setDescription] = useState('')
-  const [message, setMessage] = useState('')
-  const [busy, setBusy] = useState(false)
+  const [items, setItems] =
+    useState([])
 
-  const load = useCallback(async () => {
-    try {
-      const data = await call('/complaints/', token)
-      setItems(Array.isArray(data) ? data : data.results || [])
-    } catch (err) {
-      setMessage(err.message)
-    }
-  }, [token])
+  const [category, setCategory] =
+    useState('Infrastructure')
+
+  const [description, setDescription] =
+    useState('')
+
+  const [message, setMessage] =
+    useState('')
+
+  const [busy, setBusy] =
+    useState(false)
+
+
+  const load = useCallback(
+    async () => {
+      try {
+        const data =
+          await call(
+            '/complaints/',
+            token
+          )
+
+        setItems(
+          Array.isArray(data)
+            ? data
+            : data.results || []
+        )
+      } catch (err) {
+        setMessage(
+          err.message
+        )
+      }
+    },
+    [token]
+  )
+
 
   useEffect(() => {
     load()
   }, [load])
 
+
   async function submit(e) {
     e.preventDefault()
+
     setBusy(true)
     setMessage('')
 
+
     try {
-      await call('/complaints/', token, {
-        method: 'POST',
-        body: JSON.stringify({
-          category,
-          description,
-        }),
-      })
+      await call(
+        '/complaints/',
+        token,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            category,
+            description,
+          }),
+        }
+      )
+
 
       setDescription('')
-      setMessage('Complaint submitted successfully.')
+
+      setMessage(
+        'Complaint submitted successfully.'
+      )
+
       await load()
     } catch (err) {
-      setMessage(err.message)
+      setMessage(
+        err.message
+      )
     } finally {
       setBusy(false)
     }
   }
 
+
   return (
     <>
       <div className="card">
-        <h2>CampusCare</h2>
+        <h2>
+          CampusCare
+        </h2>
+
 
         <p className="sub">
-          Raise a concern and track its progress.
+          Raise a concern and
+          track its progress.
         </p>
 
-        <form onSubmit={submit}>
-          <label>Category</label>
+
+        <form
+          onSubmit={submit}
+        >
+          <label>
+            Category
+          </label>
+
 
           <select
             value={category}
-            onChange={e => setCategory(e.target.value)}
+            onChange={e =>
+              setCategory(
+                e.target.value
+              )
+            }
           >
             {[
               'Infrastructure',
@@ -868,49 +1717,93 @@ function StudentCare({ token }) {
               'Hostel',
               'Other',
             ].map(x => (
-              <option key={x}>{x}</option>
+              <option key={x}>
+                {x}
+              </option>
             ))}
           </select>
 
-          <label>Description</label>
+
+          <label>
+            Description
+          </label>
+
 
           <textarea
             rows="4"
             value={description}
-            onChange={e => setDescription(e.target.value)}
+            onChange={e =>
+              setDescription(
+                e.target.value
+              )
+            }
             placeholder="Describe your concern..."
             required
           />
 
-          <button className="btn" disabled={busy}>
-            {busy ? 'Submitting...' : 'Submit complaint'}
+
+          <button
+            className="btn"
+            disabled={busy}
+          >
+            {busy
+              ? 'Submitting...'
+              : 'Submit complaint'}
           </button>
         </form>
 
-        {message && <p className="note">{message}</p>}
+
+        {message && (
+          <p className="note">
+            {message}
+          </p>
+        )}
       </div>
 
-      <SectionTitle>My complaints</SectionTitle>
+
+      <SectionTitle>
+        My complaints
+      </SectionTitle>
+
 
       {items.length === 0 ? (
-        <Empty>No complaints submitted yet.</Empty>
+        <Empty>
+          No complaints submitted yet.
+        </Empty>
       ) : (
         items.map(item => (
-          <div className="card" key={item.id}>
+          <div
+            className="card"
+            key={item.id}
+          >
             <div className="row">
-              <strong>{item.category}</strong>
-              <Tag>{item.status}</Tag>
+              <strong>
+                {item.category}
+              </strong>
+
+              <Tag>
+                {item.status}
+              </Tag>
             </div>
 
-            <p>{item.description}</p>
+
+            <p>
+              {item.description}
+            </p>
+
 
             <p className="sub">
-              Raised: {fmt(item.raised_at)}
+              Raised:{' '}
+              {fmt(
+                item.raised_at
+              )}
             </p>
+
 
             {item.response && (
               <p className="note">
-                Response: {item.response}
+                Response:{' '}
+                {item.response}
               </p>
             )}
           </div>
@@ -920,16 +1813,38 @@ function StudentCare({ token }) {
   )
 }
 
+
 /* STUDENT PORTAL */
 
-function Student({ token, user, onLogout }) {
-  const [tab, setTab] = useState('home')
+function Student({
+  token,
+  user,
+  onLogout,
+}) {
+  const [tab, setTab] =
+    useState('home')
+
 
   const nav = [
-    { id: 'home', label: 'Home', icon: 'âŒ‚' },
-    { id: 'scan', label: 'Scan QR', icon: 'â–¦' },
-    { id: 'care', label: 'CampusCare', icon: 'â™¡' },
+    {
+      id: 'home',
+      label: 'Home',
+      icon: '⌂',
+    },
+
+    {
+      id: 'scan',
+      label: 'Scan QR',
+      icon: '▦',
+    },
+
+    {
+      id: 'care',
+      label: 'CampusCare',
+      icon: '♡',
+    },
   ]
+
 
   return (
     <Shell
@@ -938,16 +1853,26 @@ function Student({ token, user, onLogout }) {
       onLogout={onLogout}
     >
       {tab === 'home' && (
-        <StudentHome token={token} user={user} />
+        <StudentHome
+          token={token}
+          user={user}
+        />
       )}
+
 
       {tab === 'scan' && (
-        <ScanTab token={token} />
+        <ScanTab
+          token={token}
+        />
       )}
 
+
       {tab === 'care' && (
-        <StudentCare token={token} />
+        <StudentCare
+          token={token}
+        />
       )}
+
 
       <BottomNav
         items={nav}
@@ -958,134 +1883,237 @@ function Student({ token, user, onLogout }) {
   )
 }
 
+
 /* FACULTY: DATABASE-BACKED STUDENT ROSTER */
 
-function StaffStudents({ token }) {
-  const [students, setStudents] = useState([])
-  const [name, setName] = useState('')
-  const [usn, setUsn] = useState('')
-  const [password, setPassword] = useState('demo1234')
-  const [busy, setBusy] = useState(false)
-  const [loading, setLoading] = useState(true)
-  const [message, setMessage] = useState('')
-  const [error, setError] = useState('')
+function StaffStudents({
+  token,
+}) {
+  const [students, setStudents] =
+    useState([])
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    setError('')
+  const [name, setName] =
+    useState('')
 
-    try {
-      const data = await call('/students/', token)
-      setStudents(Array.isArray(data) ? data : data.results || [])
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setLoading(false)
-    }
-  }, [token])
+  const [usn, setUsn] =
+    useState('')
+
+  const [password, setPassword] =
+    useState('demo1234')
+
+  const [busy, setBusy] =
+    useState(false)
+
+  const [loading, setLoading] =
+    useState(true)
+
+  const [message, setMessage] =
+    useState('')
+
+  const [error, setError] =
+    useState('')
+
+
+  const load = useCallback(
+    async () => {
+      setLoading(true)
+      setError('')
+
+
+      try {
+        const data =
+          await call(
+            '/students/',
+            token
+          )
+
+        setStudents(
+          Array.isArray(data)
+            ? data
+            : data.results || []
+        )
+      } catch (err) {
+        setError(
+          err.message
+        )
+      } finally {
+        setLoading(false)
+      }
+    },
+    [token]
+  )
+
 
   useEffect(() => {
     load()
   }, [load])
 
+
   async function addStudent(e) {
     e.preventDefault()
+
     setBusy(true)
     setMessage('')
     setError('')
 
+
     try {
-      const created = await call('/students/', token, {
-        method: 'POST',
-        body: JSON.stringify({
-          name,
-          usn,
-          password,
-        }),
-      })
+      const created =
+        await call(
+          '/students/',
+          token,
+          {
+            method: 'POST',
+            body: JSON.stringify({
+              name,
+              usn,
+              password,
+            }),
+          }
+        )
+
 
       setStudents(old =>
-        [...old, created].sort((a, b) =>
-          a.id.localeCompare(b.id)
+        [...old, created].sort(
+          (a, b) =>
+            a.id.localeCompare(
+              b.id
+            )
         )
       )
 
+
       setName('')
       setUsn('')
-      setPassword('demo1234')
+      setPassword(
+        'demo1234'
+      )
+
 
       setMessage(
         `Student ${created.id} added to the database.`
       )
     } catch (err) {
-      setError(err.message)
+      setError(
+        err.message
+      )
     } finally {
       setBusy(false)
     }
   }
 
+
   return (
     <>
       <div className="card">
-        <h2>Student management</h2>
+        <h2>
+          Student management
+        </h2>
+
 
         <p className="sub">
-          Add students once. Their records are saved in the Django database
-          and become available to attendance reports.
+          Add students once. Their
+          records are saved in the
+          Django database and become
+          available to attendance
+          reports.
         </p>
 
-        <form onSubmit={addStudent}>
-          <label>Student full name</label>
+
+        <form
+          onSubmit={addStudent}
+        >
+          <label>
+            Student full name
+          </label>
+
 
           <input
             value={name}
-            onChange={e => setName(e.target.value)}
+            onChange={e =>
+              setName(
+                e.target.value
+              )
+            }
             placeholder="e.g. Ananya Rao"
             required
           />
 
-          <label>USN</label>
+
+          <label>
+            USN
+          </label>
+
 
           <input
             value={usn}
-            onChange={e => setUsn(e.target.value.toUpperCase())}
+            onChange={e =>
+              setUsn(
+                e.target.value.toUpperCase()
+              )
+            }
             placeholder="e.g. 4MC24IS101"
             required
           />
 
-          <label>Student login password</label>
+
+          <label>
+            Student login password
+          </label>
+
 
           <input
             type="text"
             value={password}
-            onChange={e => setPassword(e.target.value)}
+            onChange={e =>
+              setPassword(
+                e.target.value
+              )
+            }
             minLength="6"
             required
           />
 
+
           <p className="sub">
-            Default password is demo1234. You can set a different temporary
+            Default password is
+            demo1234. You can set a
+            different temporary
             password for each student.
           </p>
 
-          <button className="btn" disabled={busy}>
+
+          <button
+            className="btn"
+            disabled={busy}
+          >
             {busy
               ? 'Adding student...'
               : 'Add student to database'}
           </button>
         </form>
 
+
         {message && (
-          <p className="ok-box">{message}</p>
+          <p className="ok-box">
+            {message}
+          </p>
         )}
 
+
         {error && (
-          <p className="bad-box">{error}</p>
+          <p className="bad-box">
+            {error}
+          </p>
         )}
       </div>
 
+
       <div className="row">
-        <SectionTitle>Registered students</SectionTitle>
+        <SectionTitle>
+          Registered students
+        </SectionTitle>
+
 
         <button
           className="ghost sm"
@@ -1095,152 +2123,259 @@ function StaffStudents({ token }) {
         </button>
       </div>
 
+
       {loading ? (
-        <Empty>Loading student list...</Empty>
+        <Empty>
+          Loading student list...
+        </Empty>
       ) : students.length === 0 ? (
         <Empty>
-          No students registered yet. Add the first student above.
+          No students registered yet.
+          Add the first student above.
         </Empty>
       ) : (
-        students.map(student => (
-          <div className="card" key={student.id}>
-            <div className="row">
-              <strong>
-                {student.name || student.username}
-              </strong>
+        students.map(
+          student => (
+            <div
+              className="card"
+              key={student.id}
+            >
+              <div className="row">
+                <strong>
+                  {student.name ||
+                    student.username}
+                </strong>
 
-              <Tag type="ok">Student</Tag>
+                <Tag type="ok">
+                  Student
+                </Tag>
+              </div>
+
+
+              <p className="sub">
+                USN:{' '}
+                {student.id} ·
+                Department:{' '}
+                {student.department}
+              </p>
             </div>
-
-            <p className="sub">
-              USN: {student.id} Â· Department: {student.department}
-            </p>
-          </div>
-        ))
+          )
+        )
       )}
     </>
   )
 }
 
+
 /* FACULTY ATTENDANCE */
 
-function StaffSession({ token }) {
-  const [session, setSession] = useState(null)
-  const [course, setCourse] = useState('Computer Networks')
-  const [semester, setSemester] = useState('5')
-  const [seconds, setSeconds] = useState(30)
-  const [busy, setBusy] = useState(false)
-  const [message, setMessage] = useState('')
-  const [roster, setRoster] = useState([])
+function StaffSession({
+  token,
+}) {
+  const [session, setSession] =
+    useState(null)
 
-  const refresh = useCallback(async id => {
-    try {
-      const data = await call(
-        `/attendance/sessions/${id}/refresh/`,
-        token,
-        { method: 'POST' }
-      )
+  const [course, setCourse] =
+    useState(
+      'Computer Networks'
+    )
 
-      setSession(data)
-      setSeconds(30)
-    } catch (err) {
-      setMessage(err.message)
-    }
-  }, [token])
+  const [semester, setSemester] =
+    useState('5')
 
-  const loadRoster = useCallback(async id => {
-    try {
-      const data = await call(
-        `/attendance/sessions/${id}/report/`,
-        token
-      )
+  const [seconds, setSeconds] =
+    useState(30)
 
-      setRoster(data.rows || data.records || [])
-    } catch (err) {
-      setMessage(err.message)
-    }
-  }, [token])
+  const [busy, setBusy] =
+    useState(false)
+
+  const [message, setMessage] =
+    useState('')
+
+  const [roster, setRoster] =
+    useState([])
+
+
+  const refresh =
+    useCallback(
+      async id => {
+        try {
+          const data =
+            await call(
+              `/attendance/sessions/${id}/refresh/`,
+              token,
+              {
+                method:
+                  'POST',
+              }
+            )
+
+          setSession(data)
+          setSeconds(30)
+        } catch (err) {
+          setMessage(
+            err.message
+          )
+        }
+      },
+      [token]
+    )
+
+
+  const loadRoster =
+    useCallback(
+      async id => {
+        try {
+          const data =
+            await call(
+              `/attendance/sessions/${id}/report/`,
+              token
+            )
+
+          setRoster(
+            data.rows ||
+              data.records ||
+              []
+          )
+        } catch (err) {
+          setMessage(
+            err.message
+          )
+        }
+      },
+      [token]
+    )
+
 
   useEffect(() => {
     if (!session?.id) return
 
-    const timer = setInterval(() => {
-      setSeconds(value => {
-        if (value <= 1) {
-          refresh(session.id)
-          return 30
-        }
 
-        return value - 1
-      })
-    }, 1000)
+    const timer =
+      setInterval(() => {
+        setSeconds(
+          value => {
+            if (value <= 1) {
+              refresh(
+                session.id
+              )
 
-    return () => clearInterval(timer)
-  }, [session?.id, refresh])
+              return 30
+            }
+
+            return value - 1
+          }
+        )
+      }, 1000)
+
+
+    return () =>
+      clearInterval(timer)
+  }, [
+    session?.id,
+    refresh,
+  ])
+
 
   async function start() {
     setBusy(true)
     setMessage('')
     setRoster([])
 
+
     try {
-      const data = await call(
-        '/attendance/sessions/start/',
-        token,
-        {
-          method: 'POST',
-          body: JSON.stringify({
-            course,
-            semester,
-            beacon_id: BEACON_ID,
-          }),
-        }
-      )
+      const data =
+        await call(
+          '/attendance/sessions/start/',
+          token,
+          {
+            method:
+              'POST',
+
+            body: JSON.stringify({
+              course,
+              semester,
+              beacon_id:
+                BEACON_ID,
+            }),
+          }
+        )
+
 
       setSession(data)
       setSeconds(30)
-      await loadRoster(data.id)
+
+      await loadRoster(
+        data.id
+      )
     } catch (err) {
-      setMessage(err.message)
+      setMessage(
+        err.message
+      )
     } finally {
       setBusy(false)
     }
   }
 
+
   async function stop() {
     setBusy(true)
+
 
     try {
       await call(
         `/attendance/sessions/${session.id}/stop/`,
         token,
-        { method: 'POST' }
+        {
+          method:
+            'POST',
+        }
       )
 
+
       setSession(null)
-      setMessage('Attendance session stopped.')
+
+      setMessage(
+        'Attendance session stopped.'
+      )
     } catch (err) {
-      setMessage(err.message)
+      setMessage(
+        err.message
+      )
     } finally {
       setBusy(false)
     }
   }
 
+
   return (
     <div className="card">
-      <h2>Attendance session</h2>
+      <h2>
+        Attendance session
+      </h2>
+
 
       <p className="sub">
-        Start a session and display the QR code to students.
+        Start a session and
+        display the QR code to
+        students.
       </p>
+
 
       {!session ? (
         <>
-          <label>Subject</label>
+          <label>
+            Subject
+          </label>
+
 
           <select
             value={course}
-            onChange={e => setCourse(e.target.value)}
+            onChange={e =>
+              setCourse(
+                e.target.value
+              )
+            }
           >
             {[
               'Computer Networks',
@@ -1250,82 +2385,146 @@ function StaffSession({ token }) {
               'Operating Systems',
               'Web Technology',
             ].map(x => (
-              <option key={x}>{x}</option>
+              <option key={x}>
+                {x}
+              </option>
             ))}
           </select>
 
-          <label>Semester</label>
+
+          <label>
+            Semester
+          </label>
+
 
           <select
             value={semester}
-            onChange={e => setSemester(e.target.value)}
+            onChange={e =>
+              setSemester(
+                e.target.value
+              )
+            }
           >
-            {['1', '2', '3', '4', '5', '6', '7', '8'].map(x => (
-              <option key={x}>{x}</option>
+            {[
+              '1',
+              '2',
+              '3',
+              '4',
+              '5',
+              '6',
+              '7',
+              '8',
+            ].map(x => (
+              <option key={x}>
+                {x}
+              </option>
             ))}
           </select>
+
 
           <button
             className="btn"
             onClick={start}
             disabled={busy}
           >
-            {busy ? 'Starting...' : 'Start attendance'}
+            {busy
+              ? 'Starting...'
+              : 'Start attendance'}
           </button>
         </>
       ) : (
         <>
-          <div className="sub">ACTIVE SESSION</div>
+          <div className="sub">
+            ACTIVE SESSION
+          </div>
 
-          <h2>{session.course}</h2>
+
+          <h2>
+            {session.course}
+          </h2>
+
 
           <p className="sub">
-            Semester {session.semester}
+            Semester{' '}
+            {session.semester}
           </p>
+
 
           <div
             style={{
-              background: '#fff',
+              background:
+                '#fff',
               padding: 16,
               borderRadius: 16,
-              width: 'fit-content',
-              margin: '20px auto',
+              width:
+                'fit-content',
+              margin:
+                '20px auto',
             }}
           >
             <QRCodeSVG
-              value={session.qr_token || ''}
+              value={
+                session.qr_token ||
+                ''
+              }
               size={220}
             />
           </div>
 
-          <h1 style={{ textAlign: 'center' }}>
+
+          <h1
+            style={{
+              textAlign:
+                'center',
+            }}
+          >
             {seconds}s
           </h1>
 
+
           <p
             className="sub"
-            style={{ textAlign: 'center' }}
+            style={{
+              textAlign:
+                'center',
+            }}
           >
             QR refresh countdown
           </p>
 
+
           <p>
-            <strong>Present:</strong> {session.present ?? 0}
+            <strong>
+              Present:
+            </strong>{' '}
+            {session.present ??
+              0}
           </p>
+
 
           <button
             className="ghost"
-            onClick={() => refresh(session.id)}
+            onClick={() =>
+              refresh(
+                session.id
+              )
+            }
           >
             Refresh QR
           </button>
 
+
           <button
             className="ghost"
-            onClick={() => loadRoster(session.id)}
+            onClick={() =>
+              loadRoster(
+                session.id
+              )
+            }
           >
             Refresh present list
           </button>
+
 
           <button
             className="btn"
@@ -1335,26 +2534,43 @@ function StaffSession({ token }) {
             Stop attendance
           </button>
 
+
           <SectionTitle>
-            Student attendance list
+            Student attendance
+            list
           </SectionTitle>
 
-          {roster.length === 0 ? (
+
+          {roster.length ===
+          0 ? (
             <Empty>
-              No students found for this department yet. Add students under
-              Student Management.
+              No students found
+              for this department
+              yet. Add students
+              under Student
+              Management.
             </Empty>
           ) : (
             roster.map(row => (
-              <div className="row" key={row.usn}>
+              <div
+                className="row"
+                key={row.usn}
+              >
                 <div>
-                  <strong>{row.name}</strong>
-                  <p className="sub">{row.usn}</p>
+                  <strong>
+                    {row.name}
+                  </strong>
+
+                  <p className="sub">
+                    {row.usn}
+                  </p>
                 </div>
+
 
                 <Tag
                   type={
-                    row.status === 'Present'
+                    row.status ===
+                    'Present'
                       ? 'ok'
                       : 'bad'
                   }
@@ -1367,42 +2583,70 @@ function StaffSession({ token }) {
         </>
       )}
 
+
       {message && (
-        <p className="note">{message}</p>
+        <p className="note">
+          {message}
+        </p>
       )}
     </div>
   )
 }
 
+
 /* FACULTY REPORTS */
 
-function StaffReports({ token }) {
-  const [sessions, setSessions] = useState([])
-  const [selected, setSelected] = useState('')
-  const [report, setReport] = useState(null)
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
+function StaffReports({
+  token,
+}) {
+  const [sessions, setSessions] =
+    useState([])
+
+  const [selected, setSelected] =
+    useState('')
+
+  const [report, setReport] =
+    useState(null)
+
+  const [error, setError] =
+    useState('')
+
+  const [loading, setLoading] =
+    useState(false)
+
 
   useEffect(() => {
-    call('/attendance/sessions/', token)
+    call(
+      '/attendance/sessions/',
+      token
+    )
       .then(data =>
         setSessions(
           Array.isArray(data)
             ? data
-            : data.results || []
+            : data.results ||
+              []
         )
       )
-      .catch(err => setError(err.message))
+      .catch(err =>
+        setError(
+          err.message
+        )
+      )
   }, [token])
+
 
   async function loadReport(id) {
     setSelected(id)
     setReport(null)
 
+
     if (!id) return
+
 
     setLoading(true)
     setError('')
+
 
     try {
       setReport(
@@ -1412,139 +2656,217 @@ function StaffReports({ token }) {
         )
       )
     } catch (err) {
-      setError(err.message)
+      setError(
+        err.message
+      )
     } finally {
       setLoading(false)
     }
   }
 
+
   async function exportExcel() {
     try {
-      const response = await call(
-        `/attendance/sessions/${selected}/excel/`,
-        token,
-        { raw: true }
-      )
+      const response =
+        await call(
+          `/attendance/sessions/${selected}/excel/`,
+          token,
+          {
+            raw: true,
+          }
+        )
 
-      const blob = await response.blob()
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
+
+      const blob =
+        await response.blob()
+
+      const url =
+        URL.createObjectURL(
+          blob
+        )
+
+      const link =
+        document.createElement(
+          'a'
+        )
 
       link.href = url
-      link.download = `attendance-${selected}.xlsx`
+
+      link.download =
+        `attendance-${selected}.xlsx`
+
       link.click()
 
-      URL.revokeObjectURL(url)
+      URL.revokeObjectURL(
+        url
+      )
     } catch (err) {
-      setError(err.message)
+      setError(
+        err.message
+      )
     }
   }
 
-  const rows = report?.rows || report?.records || []
+
+  const rows =
+    report?.rows ||
+    report?.records ||
+    []
+
 
   return (
     <>
       <div className="card">
-        <h2>Attendance reports</h2>
+        <h2>
+          Attendance reports
+        </h2>
 
-        <label>Select session</label>
+
+        <label>
+          Select session
+        </label>
+
 
         <select
           value={selected}
-          onChange={e => loadReport(e.target.value)}
+          onChange={e =>
+            loadReport(
+              e.target.value
+            )
+          }
         >
           <option value="">
             Choose a session
           </option>
+
 
           {sessions.map(item => (
             <option
               key={item.id}
               value={item.id}
             >
-              {item.course} Â· {fmt(item.started_at)}
+              {item.course} ·{' '}
+              {fmt(
+                item.started_at
+              )}
             </option>
           ))}
         </select>
 
+
         <button
           className="btn"
           disabled={!selected}
-          onClick={exportExcel}
+          onClick={
+            exportExcel
+          }
         >
           Export Excel
         </button>
 
+
         {error && (
-          <p className="bad-box">{error}</p>
+          <p className="bad-box">
+            {error}
+          </p>
         )}
       </div>
 
+
       {loading && (
-        <Empty>Loading report...</Empty>
+        <Empty>
+          Loading report...
+        </Empty>
       )}
+
 
       {report && (
         <>
           <div className="card">
             <h3>
-              {report.session?.course ||
+              {report.session
+                ?.course ||
                 'Attendance report'}
             </h3>
 
+
             <p className="sub">
-              {fmt(report.session?.started_at)}
+              {fmt(
+                report.session
+                  ?.started_at
+              )}
             </p>
 
+
             <p>
-              Total students: {rows.length}
+              Total students:{' '}
+              {rows.length}
             </p>
           </div>
+
 
           <SectionTitle>
             Attendance records
           </SectionTitle>
 
-          {rows.length === 0 ? (
+
+          {rows.length ===
+          0 ? (
             <Empty>
-              No students have been entered for this department.
+              No students have
+              been entered for
+              this department.
             </Empty>
           ) : (
-            rows.map((row, index) => (
-              <div
-                className="card"
-                key={row.usn || row.id || index}
-              >
-                <strong>
-                  {row.name ||
-                    row.student_name ||
-                    row.student ||
-                    `Student ${index + 1}`}
-                </strong>
-
-                <p className="sub">
-                  {row.usn ||
-                    row.roll_number ||
-                    ''}
-                </p>
-
-                <Tag
-                  type={
-                    row.status === 'Present'
-                      ? 'ok'
-                      : 'bad'
+            rows.map(
+              (
+                row,
+                index
+              ) => (
+                <div
+                  className="card"
+                  key={
+                    row.usn ||
+                    row.id ||
+                    index
                   }
                 >
-                  {row.status || 'Present'}
-                </Tag>
-              </div>
-            ))
+                  <strong>
+                    {row.name ||
+                      row.student_name ||
+                      row.student ||
+                      `Student ${index + 1}`}
+                  </strong>
+
+
+                  <p className="sub">
+                    {row.usn ||
+                      row.roll_number ||
+                      ''}
+                  </p>
+
+
+                  <Tag
+                    type={
+                      row.status ===
+                      'Present'
+                        ? 'ok'
+                        : 'bad'
+                    }
+                  >
+                    {row.status ||
+                      'Present'}
+                  </Tag>
+                </div>
+              )
+            )
           )}
         </>
       )}
     </>
   )
 }
+
 
 /* CLASSES AND TIMETABLE: LOCAL DEMO */
 
@@ -1556,6 +2878,7 @@ const DEFAULT_CLASSES = [
     faculty: 'Faculty',
     students: [],
   },
+
   {
     id: 2,
     name: 'Big Data',
@@ -1563,6 +2886,7 @@ const DEFAULT_CLASSES = [
     faculty: 'Faculty',
     students: [],
   },
+
   {
     id: 3,
     name: 'Software Engineering',
@@ -1572,63 +2896,105 @@ const DEFAULT_CLASSES = [
   },
 ]
 
+
 function StaffClasses() {
-  const [classes, setClasses] = useState(
-    () => readLocal(
-      'nexvia_classes',
-      DEFAULT_CLASSES
+  const [classes, setClasses] =
+    useState(() =>
+      readLocal(
+        'nexvia_classes',
+        DEFAULT_CLASSES
+      )
     )
-  )
 
-  const [selectedId, setSelectedId] = useState(null)
-  const [name, setName] = useState('')
-  const [semester, setSemester] = useState('5')
-  const [faculty, setFaculty] = useState('')
-  const [studentName, setStudentName] = useState('')
-  const [usn, setUsn] = useState('')
 
-  const [timetable, setTimetable] = useState(
-    () => readLocal(
-      'nexvia_timetable',
-      []
+  const [selectedId, setSelectedId] =
+    useState(null)
+
+  const [name, setName] =
+    useState('')
+
+  const [semester, setSemester] =
+    useState('5')
+
+  const [faculty, setFaculty] =
+    useState('')
+
+  const [studentName, setStudentName] =
+    useState('')
+
+  const [usn, setUsn] =
+    useState('')
+
+
+  const [timetable, setTimetable] =
+    useState(() =>
+      readLocal(
+        'nexvia_timetable',
+        []
+      )
     )
-  )
 
-  const [day, setDay] = useState('Monday')
-  const [time, setTime] = useState('')
-  const [subject, setSubject] = useState('')
 
-  const selected = classes.find(
-    item => item.id === selectedId
-  )
+  const [day, setDay] =
+    useState('Monday')
 
-  function updateClasses(next) {
+  const [time, setTime] =
+    useState('')
+
+  const [subject, setSubject] =
+    useState('')
+
+
+  const selected =
+    classes.find(
+      item =>
+        item.id ===
+        selectedId
+    )
+
+
+  function updateClasses(
+    next
+  ) {
     setClasses(next)
-    saveLocal('nexvia_classes', next)
+
+    saveLocal(
+      'nexvia_classes',
+      next
+    )
   }
+
 
   function addClass(e) {
     e.preventDefault()
 
-    if (!name.trim()) return
+    if (!name.trim())
+      return
+
 
     updateClasses([
       ...classes,
+
       {
         id: Date.now(),
         name: name.trim(),
         semester,
-        faculty: faculty.trim() || 'Not assigned',
+        faculty:
+          faculty.trim() ||
+          'Not assigned',
         students: [],
       },
     ])
+
 
     setName('')
     setFaculty('')
   }
 
+
   function addStudent(e) {
     e.preventDefault()
+
 
     if (
       !selected ||
@@ -1638,17 +3004,26 @@ function StaffClasses() {
       return
     }
 
+
     updateClasses(
       classes.map(item =>
-        item.id === selectedId
+        item.id ===
+        selectedId
           ? {
               ...item,
+
               students: [
                 ...item.students,
+
                 {
-                  id: Date.now(),
-                  name: studentName.trim(),
-                  usn: usn.trim(),
+                  id:
+                    Date.now(),
+
+                  name:
+                    studentName.trim(),
+
+                  usn:
+                    usn.trim(),
                 },
               ],
             }
@@ -1656,58 +3031,100 @@ function StaffClasses() {
       )
     )
 
+
     setStudentName('')
     setUsn('')
   }
 
+
   function addTimetable(e) {
     e.preventDefault()
 
-    if (!subject.trim() || !time.trim()) {
+
+    if (
+      !subject.trim() ||
+      !time.trim()
+    ) {
       return
     }
 
+
     const next = [
       ...timetable,
+
       {
         id: Date.now(),
         day,
         time,
-        subject: subject.trim(),
+        subject:
+          subject.trim(),
       },
     ]
 
+
     setTimetable(next)
-    saveLocal('nexvia_timetable', next)
+
+    saveLocal(
+      'nexvia_timetable',
+      next
+    )
+
 
     setSubject('')
     setTime('')
   }
 
+
   return (
     <>
       <div className="card">
-        <h2>Classes management</h2>
+        <h2>
+          Classes management
+        </h2>
+
 
         <p className="note">
-          Class and timetable entries are saved in this browser only.
-          Use Student Management for the official database student roster.
+          Class and timetable
+          entries are saved in
+          this browser only.
+          Use Student
+          Management for the
+          official database
+          student roster.
         </p>
 
-        <form onSubmit={addClass}>
-          <label>Class name</label>
+
+        <form
+          onSubmit={addClass}
+        >
+          <label>
+            Class name
+          </label>
+
 
           <input
             value={name}
-            onChange={e => setName(e.target.value)}
+            onChange={e =>
+              setName(
+                e.target.value
+              )
+            }
             required
           />
 
-          <label>Semester</label>
+
+          <label>
+            Semester
+          </label>
+
 
           <select
             value={semester}
-            onChange={e => setSemester(e.target.value)}
+            onChange={e =>
+              setSemester(
+                e.target.value
+              )
+            }
           >
             {[
               '1',
@@ -1719,16 +3136,27 @@ function StaffClasses() {
               '7',
               '8',
             ].map(x => (
-              <option key={x}>{x}</option>
+              <option key={x}>
+                {x}
+              </option>
             ))}
           </select>
 
-          <label>Faculty</label>
+
+          <label>
+            Faculty
+          </label>
+
 
           <input
             value={faculty}
-            onChange={e => setFaculty(e.target.value)}
+            onChange={e =>
+              setFaculty(
+                e.target.value
+              )
+            }
           />
+
 
           <button className="btn">
             Add class
@@ -1736,88 +3164,159 @@ function StaffClasses() {
         </form>
       </div>
 
-      <SectionTitle>Class list</SectionTitle>
+
+      <SectionTitle>
+        Class list
+      </SectionTitle>
+
 
       {classes.map(item => (
-        <div className="card" key={item.id}>
-          <strong>{item.name}</strong>
+        <div
+          className="card"
+          key={item.id}
+        >
+          <strong>
+            {item.name}
+          </strong>
+
 
           <p className="sub">
-            Semester {item.semester} Â· {item.faculty} Â·{' '}
-            {item.students.length} local demo students
+            Semester{' '}
+            {item.semester} ·{' '}
+            {item.faculty} ·{' '}
+            {item.students.length}{' '}
+            local demo students
           </p>
+
 
           <button
             className="ghost sm"
-            onClick={() => setSelectedId(item.id)}
+            onClick={() =>
+              setSelectedId(
+                item.id
+              )
+            }
           >
             View class
           </button>
         </div>
       ))}
 
+
       {selected && (
         <div className="card">
           <div className="row">
-            <h3>{selected.name}</h3>
+            <h3>
+              {selected.name}
+            </h3>
+
 
             <button
               className="ghost sm"
-              onClick={() => setSelectedId(null)}
+              onClick={() =>
+                setSelectedId(
+                  null
+                )
+              }
             >
               Close
             </button>
           </div>
 
-          <form onSubmit={addStudent}>
+
+          <form
+            onSubmit={
+              addStudent
+            }
+          >
             <label>
-              Student name (local class demo only)
+              Student name
+              (local class
+              demo only)
             </label>
 
+
             <input
-              value={studentName}
+              value={
+                studentName
+              }
               onChange={e =>
-                setStudentName(e.target.value)
+                setStudentName(
+                  e.target.value
+                )
               }
               required
             />
 
-            <label>USN</label>
+
+            <label>
+              USN
+            </label>
+
 
             <input
               value={usn}
-              onChange={e => setUsn(e.target.value)}
+              onChange={e =>
+                setUsn(
+                  e.target.value
+                )
+              }
               required
             />
 
+
             <button className="btn">
-              Add to local class
+              Add to local
+              class
             </button>
           </form>
 
+
           <SectionTitle>
-            Local class students
+            Local class
+            students
           </SectionTitle>
 
-          {selected.students.map(student => (
-            <p key={student.id}>
-              {student.name} Â· {student.usn}
-            </p>
-          ))}
+
+          {selected.students.map(
+            student => (
+              <p
+                key={
+                  student.id
+                }
+              >
+                {student.name} ·{' '}
+                {student.usn}
+              </p>
+            )
+          )}
         </div>
       )}
+
 
       <SectionTitle>
         Timetable management
       </SectionTitle>
 
+
       <div className="card">
-        <form onSubmit={addTimetable}>
-          <label>Day</label>
+        <form
+          onSubmit={
+            addTimetable
+          }
+        >
+          <label>
+            Day
+          </label>
+
 
           <select
             value={day}
-            onChange={e => setDay(e.target.value)}
+            onChange={e =>
+              setDay(
+                e.target.value
+              )
+            }
           >
             {[
               'Monday',
@@ -1827,152 +3326,240 @@ function StaffClasses() {
               'Friday',
               'Saturday',
             ].map(x => (
-              <option key={x}>{x}</option>
+              <option key={x}>
+                {x}
+              </option>
             ))}
           </select>
 
-          <label>Time</label>
+
+          <label>
+            Time
+          </label>
+
 
           <input
             value={time}
-            onChange={e => setTime(e.target.value)}
+            onChange={e =>
+              setTime(
+                e.target.value
+              )
+            }
             placeholder="10:00 AM - 11:00 AM"
             required
           />
 
-          <label>Subject</label>
+
+          <label>
+            Subject
+          </label>
+
 
           <input
             value={subject}
-            onChange={e => setSubject(e.target.value)}
+            onChange={e =>
+              setSubject(
+                e.target.value
+              )
+            }
             required
           />
 
+
           <button className="btn">
-            Add timetable entry
+            Add timetable
+            entry
           </button>
         </form>
       </div>
 
-      {timetable.map(item => (
-        <div className="card" key={item.id}>
-          <div className="row">
-            <div>
-              <strong>{item.subject}</strong>
 
-              <p className="sub">
-                {item.day} Â· {item.time}
-              </p>
+      {timetable.map(
+        item => (
+          <div
+            className="card"
+            key={item.id}
+          >
+            <div className="row">
+              <div>
+                <strong>
+                  {item.subject}
+                </strong>
+
+                <p className="sub">
+                  {item.day} ·{' '}
+                  {item.time}
+                </p>
+              </div>
+
+
+              <button
+                className="ghost sm"
+                onClick={() => {
+                  const next =
+                    timetable.filter(
+                      row =>
+                        row.id !==
+                        item.id
+                    )
+
+                  setTimetable(
+                    next
+                  )
+
+                  saveLocal(
+                    'nexvia_timetable',
+                    next
+                  )
+                }}
+              >
+                Delete
+              </button>
             </div>
-
-            <button
-              className="ghost sm"
-              onClick={() => {
-                const next = timetable.filter(
-                  row => row.id !== item.id
-                )
-
-                setTimetable(next)
-                saveLocal(
-                  'nexvia_timetable',
-                  next
-                )
-              }}
-            >
-              Delete
-            </button>
           </div>
-        </div>
-      ))}
+        )
+      )}
     </>
   )
 }
 
+
 /* DEDICATED CAMPUSCARE STAFF PORTAL */
 
-function CampusCareClaims({ token }) {
-  const [items, setItems] = useState([])
-  const [filter, setFilter] = useState('All')
-  const [responses, setResponses] = useState({})
-  const [busyId, setBusyId] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [message, setMessage] = useState('')
+function CampusCareClaims({
+  token,
+}) {
+  const [items, setItems] =
+    useState([])
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    setError('')
+  const [filter, setFilter] =
+    useState('All')
 
-    try {
-      const data = await call(
-        '/complaints/',
-        token
-      )
+  const [responses, setResponses] =
+    useState({})
 
-      setItems(
-        Array.isArray(data)
-          ? data
-          : data.results || []
-      )
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setLoading(false)
-    }
-  }, [token])
+  const [busyId, setBusyId] =
+    useState(null)
+
+  const [loading, setLoading] =
+    useState(true)
+
+  const [error, setError] =
+    useState('')
+
+  const [message, setMessage] =
+    useState('')
+
+
+  const load = useCallback(
+    async () => {
+      setLoading(true)
+      setError('')
+
+
+      try {
+        const data =
+          await call(
+            '/complaints/',
+            token
+          )
+
+
+        setItems(
+          Array.isArray(data)
+            ? data
+            : data.results ||
+              []
+        )
+      } catch (err) {
+        setError(
+          err.message
+        )
+      } finally {
+        setLoading(false)
+      }
+    },
+    [token]
+  )
+
 
   useEffect(() => {
     load()
   }, [load])
 
-  async function update(item, status) {
+
+  async function update(
+    item,
+    status
+  ) {
     setBusyId(item.id)
     setError('')
     setMessage('')
+
 
     try {
       await call(
         `/complaints/${item.id}/update/`,
         token,
         {
-          method: 'PATCH',
-          body: JSON.stringify({
-            status,
-            response:
-              responses[item.id] ??
-              item.response ??
-              '',
-          }),
+          method:
+            'PATCH',
+
+          body:
+            JSON.stringify({
+              status,
+
+              response:
+                responses[
+                  item.id
+                ] ??
+                item.response ??
+                '',
+            }),
         }
       )
+
 
       setMessage(
         `Claim #${item.id} updated to ${status}.`
       )
 
+
       await load()
     } catch (err) {
-      setError(err.message)
+      setError(
+        err.message
+      )
     } finally {
       setBusyId(null)
     }
   }
 
+
   const filtered =
     filter === 'All'
       ? items
       : items.filter(
-          item => item.status === filter
+          item =>
+            item.status ===
+            filter
         )
+
 
   return (
     <>
       <div className="card">
-        <h2>CampusCare claims</h2>
+        <h2>
+          CampusCare claims
+        </h2>
+
 
         <p className="sub">
-          Review student concerns, assign action, and resolve complaints.
+          Review student concerns,
+          assign action, and
+          resolve complaints.
         </p>
+
 
         <div className="row wrap">
           {[
@@ -1985,16 +3572,22 @@ function CampusCareClaims({ token }) {
             <button
               key={value}
               className={
-                filter === value
+                filter ===
+                value
                   ? 'btn sm'
                   : 'ghost sm'
               }
-              onClick={() => setFilter(value)}
+              onClick={() =>
+                setFilter(
+                  value
+                )
+              }
             >
               {value}
             </button>
           ))}
         </div>
+
 
         <button
           className="ghost sm"
@@ -2004,78 +3597,122 @@ function CampusCareClaims({ token }) {
         </button>
       </div>
 
+
       {message && (
-        <p className="ok-box">{message}</p>
+        <p className="ok-box">
+          {message}
+        </p>
       )}
+
 
       {error && (
-        <p className="bad-box">{error}</p>
+        <p className="bad-box">
+          {error}
+        </p>
       )}
 
+
       {loading ? (
-        <Empty>Loading claims...</Empty>
-      ) : filtered.length === 0 ? (
         <Empty>
-          No claims in this category.
+          Loading claims...
+        </Empty>
+      ) : filtered.length ===
+        0 ? (
+        <Empty>
+          No claims in this
+          category.
         </Empty>
       ) : (
         filtered.map(item => (
-          <div className="card" key={item.id}>
+          <div
+            className="card"
+            key={item.id}
+          >
             <div className="row">
               <strong>
-                #{item.id} Â· {item.category}
+                #{item.id} ·{' '}
+                {item.category}
               </strong>
 
-              <Tag>{item.status}</Tag>
+
+              <Tag>
+                {item.status}
+              </Tag>
             </div>
 
-            <p>{item.description}</p>
 
-            <p className="sub">
-              Anonymous claim Â· Student identity protected
+            <p>
+              {item.description}
             </p>
 
+
             <p className="sub">
-              Raised: {fmt(item.raised_at)}
+              Anonymous claim ·
+              Student identity
+              protected
             </p>
+
+
+            <p className="sub">
+              Raised:{' '}
+              {fmt(
+                item.raised_at
+              )}
+            </p>
+
 
             <label>
               Response to student
             </label>
 
+
             <textarea
               rows="2"
               value={
-                responses[item.id] ??
+                responses[
+                  item.id
+                ] ??
                 item.response ??
                 ''
               }
               onChange={e =>
-                setResponses(old => ({
-                  ...old,
-                  [item.id]: e.target.value,
-                }))
+                setResponses(
+                  old => ({
+                    ...old,
+
+                    [item.id]:
+                      e.target
+                        .value,
+                  })
+                )
               }
               placeholder="Write an update or resolution..."
             />
+
 
             <div className="row wrap">
               <button
                 className="ghost sm"
                 disabled={
-                  busyId === item.id
+                  busyId ===
+                  item.id
                 }
                 onClick={() =>
-                  update(item, 'Assigned')
+                  update(
+                    item,
+                    'Assigned'
+                  )
                 }
               >
                 Assign
               </button>
 
+
               <button
                 className="ghost sm"
                 disabled={
-                  busyId === item.id
+                  busyId ===
+                  item.id
                 }
                 onClick={() =>
                   update(
@@ -2087,13 +3724,18 @@ function CampusCareClaims({ token }) {
                 Start action
               </button>
 
+
               <button
                 className="btn sm"
                 disabled={
-                  busyId === item.id
+                  busyId ===
+                  item.id
                 }
                 onClick={() =>
-                  update(item, 'Resolved')
+                  update(
+                    item,
+                    'Resolved'
+                  )
                 }
               >
                 Resolve
@@ -2106,6 +3748,7 @@ function CampusCareClaims({ token }) {
   )
 }
 
+
 function CampusCarePortal({
   token,
   onLogout,
@@ -2116,10 +3759,13 @@ function CampusCarePortal({
       subtitle="Manage and resolve student claims"
       onLogout={onLogout}
     >
-      <CampusCareClaims token={token} />
+      <CampusCareClaims
+        token={token}
+      />
     </Shell>
   )
 }
+
 
 /* FACULTY PORTAL */
 
@@ -2127,30 +3773,36 @@ function FacultyPortal({
   token,
   onLogout,
 }) {
-  const [tab, setTab] = useState('students')
+  const [tab, setTab] =
+    useState('students')
+
 
   const nav = [
     {
       id: 'students',
       label: 'Students',
-      icon: 'â™™',
+      icon: '♙',
     },
+
     {
       id: 'attendance',
       label: 'Attendance',
-      icon: 'â–¦',
+      icon: '▦',
     },
+
     {
       id: 'classes',
       label: 'Classes',
-      icon: 'â–¤',
+      icon: '▤',
     },
+
     {
       id: 'reports',
       label: 'Reports',
-      icon: 'â–¥',
+      icon: '▥',
     },
   ]
+
 
   return (
     <Shell
@@ -2158,21 +3810,35 @@ function FacultyPortal({
       subtitle="Manage student records and attendance"
       onLogout={onLogout}
     >
-      {tab === 'students' && (
-        <StaffStudents token={token} />
+      {tab ===
+        'students' && (
+        <StaffStudents
+          token={token}
+        />
       )}
 
-      {tab === 'attendance' && (
-        <StaffSession token={token} />
+
+      {tab ===
+        'attendance' && (
+        <StaffSession
+          token={token}
+        />
       )}
 
-      {tab === 'classes' && (
+
+      {tab ===
+        'classes' && (
         <StaffClasses />
       )}
 
-      {tab === 'reports' && (
-        <StaffReports token={token} />
+
+      {tab ===
+        'reports' && (
+        <StaffReports
+          token={token}
+        />
       )}
+
 
       <BottomNav
         items={nav}
@@ -2183,15 +3849,18 @@ function FacultyPortal({
   )
 }
 
+
 /* MAIN APP */
 
 export default function App() {
-  const [auth, setAuth] = useState(
-    () => readLocal(
-      'nexvia_auth',
-      null
+  const [auth, setAuth] =
+    useState(() =>
+      readLocal(
+        'nexvia_auth',
+        null
+      )
     )
-  )
+
 
   function login(data) {
     const next = {
@@ -2199,25 +3868,47 @@ export default function App() {
       user: data.user,
     }
 
-    saveLocal('nexvia_auth', next)
+
+    saveLocal(
+      'nexvia_auth',
+      next
+    )
+
+
     setAuth(next)
   }
 
+
   function logout() {
-    localStorage.removeItem('nexvia_auth')
-    localStorage.removeItem('nexvia_username')
+    localStorage.removeItem(
+      'nexvia_auth'
+    )
+
+    localStorage.removeItem(
+      'nexvia_username'
+    )
+
     setAuth(null)
   }
 
+
   if (!auth?.token) {
-    return <Login onLogin={login} />
+    return (
+      <Login
+        onLogin={login}
+      />
+    )
   }
+
 
   const role = String(
     auth.user?.role || ''
   ).toLowerCase()
 
-  if (role === 'campuscare') {
+
+  if (
+    role === 'campuscare'
+  ) {
     return (
       <CampusCarePortal
         token={auth.token}
@@ -2225,6 +3916,7 @@ export default function App() {
       />
     )
   }
+
 
   if (role === 'staff') {
     return (
@@ -2234,6 +3926,7 @@ export default function App() {
       />
     )
   }
+
 
   if (role === 'student') {
     return (
@@ -2245,6 +3938,14 @@ export default function App() {
     )
   }
 
-  localStorage.removeItem('nexvia_auth')
-  return <Login onLogin={login} />
+
+  localStorage.removeItem(
+    'nexvia_auth'
+  )
+
+  return (
+    <Login
+      onLogin={login}
+    />
+  )
 }
