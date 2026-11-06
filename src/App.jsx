@@ -5,6 +5,8 @@ import { Html5Qrcode } from 'html5-qrcode'
 // Change this URL only when your backend tunnel changes.
 const API = 'https://nexvia-backend-awp6.onrender.com/api'
 const BEACON_ID = 'ISE-B204'
+const BEACON_NAME = 'NEXVIA-ISE-B204'
+const BEACON_SERVICE_UUID = '12345678-1234-1234-1234-123456789001'
 const RSSI_LIMIT = -75
 
 async function call(path, token, options = {}) {
@@ -338,39 +340,210 @@ function ScanTab({ token }) {
   const [camera, setCamera] = useState(false)
   const [qr, setQr] = useState('')
   const [manual, setManual] = useState('')
-  const [rssi, setRssi] = useState(-60)
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
+  const [verification, setVerification] = useState('')
 
   const handleScan = useCallback(value => {
     setQr(value)
-    setCamera(false)
+    setMessage('')
+    setVerification('')
   }, [])
 
+  async function verifyBeacon() {
+    if (!navigator.bluetooth) {
+      throw new Error(
+        'Bluetooth is not supported in this browser. Open NEXVIA in Chrome on Android.'
+      )
+    }
+
+    setVerification('Searching for NEXVIA beacon...')
+
+    const device = await navigator.bluetooth.requestDevice({
+      filters: [
+        {
+          name: BEACON_NAME,
+          services: [BEACON_SERVICE_UUID],
+        },
+        {
+          services: [BEACON_SERVICE_UUID],
+        },
+      ],
+    })
+
+    if (!device) {
+      throw new Error('NEXVIA beacon was not selected.')
+    }
+
+    setVerification('NEXVIA beacon found. Connecting...')
+
+    const server = await device.gatt.connect()
+
+    try {
+      await server.getPrimaryService(BEACON_SERVICE_UUID)
+    } finally {
+      try {
+        if (device.gatt.connected) {
+          device.gatt.disconnect()
+        }
+      } catch {
+        // Ignore disconnect errors.
+      }
+    }
+
+    setVerification('NEXVIA beacon verified.')
+    return true
+  }
+
+  async function verifyBiometric() {
+    if (!window.isSecureContext) {
+      throw new Error(
+        'Biometric verification requires HTTPS. Open the deployed NEXVIA app on Vercel.'
+      )
+    }
+
+    if (
+      !window.PublicKeyCredential ||
+      !navigator.credentials
+    ) {
+      throw new Error(
+        'Biometric verification is not supported on this device/browser.'
+      )
+    }
+
+    setVerification('Waiting for fingerprint / face verification...')
+
+    const challenge = crypto.getRandomValues(
+      new Uint8Array(32)
+    )
+
+    const storedCredential =
+      localStorage.getItem('nexvia-biometric-credential')
+
+    if (!storedCredential) {
+      const credential =
+        await navigator.credentials.create({
+          publicKey: {
+            challenge,
+            rp: {
+              name: 'NEXVIA Smart Campus',
+            },
+            user: {
+              id: crypto.getRandomValues(
+                new Uint8Array(16)
+              ),
+              name: 'nexvia-student',
+              displayName: 'NEXVIA Student',
+            },
+            pubKeyCredParams: [
+              {
+                type: 'public-key',
+                alg: -7,
+              },
+              {
+                type: 'public-key',
+                alg: -257,
+              },
+            ],
+            authenticatorSelection: {
+              authenticatorAttachment: 'platform',
+              userVerification: 'required',
+            },
+            timeout: 60000,
+            attestation: 'none',
+          },
+        })
+
+      if (!credential) {
+        throw new Error(
+          'Biometric verification was cancelled.'
+        )
+      }
+
+      const credentialId =
+        Array.from(
+          new Uint8Array(credential.rawId)
+        )
+          .map(byte =>
+            byte.toString(16).padStart(2, '0')
+          )
+          .join('')
+
+      localStorage.setItem(
+        'nexvia-biometric-credential',
+        credentialId
+      )
+    } else {
+      const credentialId = Uint8Array.from(
+        storedCredential.match(/.{1,2}/g) || [],
+        byte => parseInt(byte, 16)
+      )
+
+      const credential =
+        await navigator.credentials.get({
+          publicKey: {
+            challenge,
+            allowCredentials: [
+              {
+                type: 'public-key',
+                id: credentialId,
+              },
+            ],
+            userVerification: 'required',
+            timeout: 60000,
+          },
+        })
+
+      if (!credential) {
+        throw new Error(
+          'Biometric verification was cancelled.'
+        )
+      }
+    }
+
+    setVerification('Biometric verification successful.')
+    return true
+  }
+
   async function mark(value) {
-    if (rssi < RSSI_LIMIT) {
-      setMessage('You are outside the permitted beacon range.')
+    if (!value || !value.trim()) {
+      setMessage('Please scan the attendance QR code first.')
       return
     }
 
     setBusy(true)
     setMessage('')
+    setVerification('')
 
     try {
+      await verifyBeacon()
+
+      await verifyBiometric()
+
+      setVerification('Verification complete. Marking attendance...')
+
       const result = await call('/attendance/mark/', token, {
         method: 'POST',
         body: JSON.stringify({
-          qr_token: value,
+          qr_token: value.trim(),
           beacon_id: BEACON_ID,
-          rssi,
         }),
       })
 
-      setMessage(result.message || 'Attendance marked successfully!')
+      setMessage(
+        result.message ||
+          'Attendance marked successfully!'
+      )
+
       setQr('')
       setManual('')
+      setVerification('')
     } catch (err) {
-      setMessage(err.message)
+      setVerification('')
+      setMessage(
+        err?.message ||
+          'Attendance verification failed.'
+      )
     } finally {
       setBusy(false)
     }
@@ -380,9 +553,16 @@ function ScanTab({ token }) {
     <>
       <div className="card">
         <h2>Scan attendance QR</h2>
-        <p className="sub">Scan the QR code displayed by your faculty.</p>
 
-        <button className="btn" onClick={() => setCamera(true)}>
+        <p className="sub">
+          Scan the QR code displayed by your faculty.
+        </p>
+
+        <button
+          className="btn"
+          onClick={() => setCamera(true)}
+          disabled={busy}
+        >
           Open camera scanner
         </button>
 
@@ -394,23 +574,53 @@ function ScanTab({ token }) {
         )}
 
         {qr && (
-          <div className="card">
-            <p className="ok-box">QR code scanned successfully.</p>
+          <div className="card" style={{ marginTop: 16 }}>
+            <div className="sub">
+              QR token detected
+            </div>
+
+            <p>
+              Ready for physical beacon and biometric
+              verification.
+            </p>
+
             <button
               className="btn"
               disabled={busy}
               onClick={() => mark(qr)}
             >
-              {busy ? 'Submitting...' : 'Mark attendance'}
+              {busy
+                ? 'Verifying...'
+                : 'Mark attendance'}
             </button>
           </div>
         )}
 
-        <SectionTitle>Manual QR entry</SectionTitle>
+        {verification && (
+          <p className="sub" style={{ marginTop: 12 }}>
+            {verification}
+          </p>
+        )}
+
+        {message && (
+          <p className="bad-box" style={{ marginTop: 12 }}>
+            {message}
+          </p>
+        )}
+      </div>
+
+      <div className="card">
+        <h3>Manual QR token</h3>
+
+        <p className="sub">
+          Enter the attendance token manually if required.
+        </p>
+
         <input
           value={manual}
           onChange={e => setManual(e.target.value)}
           placeholder="Enter QR token"
+          disabled={busy}
         />
 
         <button
@@ -418,289 +628,11 @@ function ScanTab({ token }) {
           disabled={!manual.trim() || busy}
           onClick={() => mark(manual.trim())}
         >
-          Submit token
+          {busy
+            ? 'Verifying...'
+            : 'Submit token'}
         </button>
-
-        {message && <p className="note">{message}</p>}
       </div>
-
-      <div className="card">
-        <h3>Proximity verification</h3>
-        <p className="sub">
-          Demo signal strength. This is simulated, not a real BLE scan.
-        </p>
-        <label>Signal strength: {rssi} dBm</label>
-        <input
-          type="range"
-          min="-100"
-          max="-40"
-          value={rssi}
-          onChange={e => setRssi(Number(e.target.value))}
-        />
-        <Tag type={rssi >= RSSI_LIMIT ? 'ok' : 'bad'}>
-          {rssi >= RSSI_LIMIT ? 'Within range' : 'Outside range'}
-        </Tag>
-      </div>
-    </>
-  )
-}
-/* STUDENT CAMPUSCARE */
-
-function StudentCare({ token }) {
-  const [items, setItems] = useState([])
-  const [category, setCategory] = useState('Infrastructure')
-  const [description, setDescription] = useState('')
-  const [message, setMessage] = useState('')
-  const [busy, setBusy] = useState(false)
-
-  const load = useCallback(async () => {
-    try {
-      const data = await call('/complaints/', token)
-      setItems(Array.isArray(data) ? data : data.results || [])
-    } catch (err) {
-      setMessage(err.message)
-    }
-  }, [token])
-
-  useEffect(() => {
-    load()
-  }, [load])
-
-  async function submit(e) {
-    e.preventDefault()
-    setBusy(true)
-    setMessage('')
-
-    try {
-      await call('/complaints/', token, {
-        method: 'POST',
-        body: JSON.stringify({ category, description }),
-      })
-      setDescription('')
-      setMessage('Complaint submitted successfully.')
-      await load()
-    } catch (err) {
-      setMessage(err.message)
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  return (
-    <>
-      <div className="card">
-        <h2>CampusCare</h2>
-        <p className="sub">Raise a concern and track its progress.</p>
-
-        <form onSubmit={submit}>
-          <label>Category</label>
-          <select
-            value={category}
-            onChange={e => setCategory(e.target.value)}
-          >
-            {[
-              'Infrastructure',
-              'Cleanliness',
-              'Classroom',
-              'Laboratory',
-              'Hostel',
-              'Other',
-            ].map(x => <option key={x}>{x}</option>)}
-          </select>
-
-          <label>Description</label>
-          <textarea
-            rows="4"
-            value={description}
-            onChange={e => setDescription(e.target.value)}
-            placeholder="Describe your concern..."
-            required
-          />
-
-          <button className="btn" disabled={busy}>
-            {busy ? 'Submitting...' : 'Submit complaint'}
-          </button>
-        </form>
-
-        {message && <p className="note">{message}</p>}
-      </div>
-
-      <SectionTitle>My complaints</SectionTitle>
-
-      {items.length === 0 ? (
-        <Empty>No complaints submitted yet.</Empty>
-      ) : (
-        items.map(item => (
-          <div className="card" key={item.id}>
-            <div className="row">
-              <strong>{item.category}</strong>
-              <Tag>{item.status}</Tag>
-            </div>
-            <p>{item.description}</p>
-            <p className="sub">Raised: {fmt(item.raised_at)}</p>
-            {item.response && (
-              <p className="note">Response: {item.response}</p>
-            )}
-          </div>
-        ))
-      )}
-    </>
-  )
-}
-
-/* STUDENT PORTAL */
-
-function Student({ token, user, onLogout }) {
-  const [tab, setTab] = useState('home')
-
-  const nav = [
-    { id: 'home', label: 'Home', icon: '⌂' },
-    { id: 'scan', label: 'Scan QR', icon: '▦' },
-    { id: 'care', label: 'CampusCare', icon: '♡' },
-  ]
-
-  return (
-    <Shell
-      title="Student Portal"
-      subtitle="Your campus at a glance"
-      onLogout={onLogout}
-    >
-      {tab === 'home' && <StudentHome token={token} user={user} />}
-      {tab === 'scan' && <ScanTab token={token} />}
-      {tab === 'care' && <StudentCare token={token} />}
-
-      <BottomNav items={nav} active={tab} onChange={setTab} />
-    </Shell>
-  )
-}
-
-/* FACULTY: DATABASE-BACKED STUDENT ROSTER */
-
-function StaffStudents({ token }) {
-  const [students, setStudents] = useState([])
-  const [name, setName] = useState('')
-  const [usn, setUsn] = useState('')
-  const [password, setPassword] = useState('demo1234')
-  const [busy, setBusy] = useState(false)
-  const [loading, setLoading] = useState(true)
-  const [message, setMessage] = useState('')
-  const [error, setError] = useState('')
-
-  const load = useCallback(async () => {
-    setLoading(true)
-    setError('')
-
-    try {
-      const data = await call('/students/', token)
-      setStudents(Array.isArray(data) ? data : data.results || [])
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setLoading(false)
-    }
-  }, [token])
-
-  useEffect(() => {
-    load()
-  }, [load])
-
-  async function addStudent(e) {
-    e.preventDefault()
-    setBusy(true)
-    setMessage('')
-    setError('')
-
-    try {
-      const created = await call('/students/', token, {
-        method: 'POST',
-        body: JSON.stringify({ name, usn, password }),
-      })
-
-      setStudents(old =>
-        [...old, created].sort((a, b) => a.id.localeCompare(b.id))
-      )
-      setName('')
-      setUsn('')
-      setPassword('demo1234')
-      setMessage(`Student ${created.id} added to the database.`)
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  return (
-    <>
-      <div className="card">
-        <h2>Student management</h2>
-        <p className="sub">
-          Add students once. Their records are saved in the Django database
-          and become available to attendance reports.
-        </p>
-
-        <form onSubmit={addStudent}>
-          <label>Student full name</label>
-          <input
-            value={name}
-            onChange={e => setName(e.target.value)}
-            placeholder="e.g. Ananya Rao"
-            required
-          />
-
-          <label>USN</label>
-          <input
-            value={usn}
-            onChange={e => setUsn(e.target.value.toUpperCase())}
-            placeholder="e.g. 4MC24IS101"
-            required
-          />
-
-          <label>Student login password</label>
-          <input
-            type="text"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            minLength="6"
-            required
-          />
-
-          <p className="sub">
-            Default password is demo1234. You can set a different temporary
-            password for each student.
-          </p>
-
-          <button className="btn" disabled={busy}>
-            {busy ? 'Adding student...' : 'Add student to database'}
-          </button>
-        </form>
-
-        {message && <p className="ok-box">{message}</p>}
-        {error && <p className="bad-box">{error}</p>}
-      </div>
-
-      <div className="row">
-        <SectionTitle>Registered students</SectionTitle>
-        <button className="ghost sm" onClick={load}>Refresh list</button>
-      </div>
-
-      {loading ? (
-        <Empty>Loading student list...</Empty>
-      ) : students.length === 0 ? (
-        <Empty>No students registered yet. Add the first student above.</Empty>
-      ) : (
-        students.map(student => (
-          <div className="card" key={student.id}>
-            <div className="row">
-              <strong>{student.name || student.username}</strong>
-              <Tag type="ok">Student</Tag>
-            </div>
-            <p className="sub">
-              USN: {student.id} · Department: {student.department}
-            </p>
-          </div>
-        ))
-      )}
     </>
   )
 }
