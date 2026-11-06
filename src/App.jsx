@@ -766,7 +766,7 @@ function ScanTab({ token }) {
 
   if (!device) {
     throw new Error(
-      'No Bluetooth device was returned by the browser.'
+      'No Bluetooth device was selected.'
     )
   }
 
@@ -1173,6 +1173,239 @@ function ScanTab({ token }) {
 }
 
 // =====================================================
+// STUDENT CAMPUSCARE
+// =====================================================
+
+function StudentCampusCare({
+  token,
+}) {
+  const [category, setCategory] =
+    useState('Academic')
+
+  const [description, setDescription] =
+    useState('')
+
+  const [items, setItems] =
+    useState([])
+
+  const [loading, setLoading] =
+    useState(false)
+
+  const [message, setMessage] =
+    useState('')
+
+  const [error, setError] =
+    useState('')
+
+  const load = useCallback(async () => {
+    try {
+      const data =
+        await call(
+          '/complaints/',
+          token
+        )
+
+      setItems(
+        Array.isArray(data)
+          ? data
+          : data.results || []
+      )
+    } catch (err) {
+      setError(err.message)
+    }
+  }, [token])
+
+  useEffect(() => {
+    load()
+  }, [load])
+
+  async function submitComplaint(e) {
+    e.preventDefault()
+
+    if (!description.trim()) {
+      setError(
+        'Please describe your concern.'
+      )
+      return
+    }
+
+    setLoading(true)
+    setError('')
+    setMessage('')
+
+    try {
+      await call(
+        '/complaints/',
+        token,
+        {
+          method: 'POST',
+
+          body: JSON.stringify({
+            category,
+            description:
+              description.trim(),
+          }),
+        }
+      )
+
+      setDescription('')
+
+      setMessage(
+        'Your CampusCare complaint has been submitted.'
+      )
+
+      await load()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <>
+      <div className="card">
+        <div className="sub">
+          CAMPUSCARE
+        </div>
+
+        <h2>
+          Raise a concern
+        </h2>
+
+        <p className="sub">
+          Report a campus issue and
+          track its progress.
+        </p>
+
+        <form
+          onSubmit={submitComplaint}
+        >
+          <label>
+            Category
+          </label>
+
+          <select
+            value={category}
+            onChange={e =>
+              setCategory(
+                e.target.value
+              )
+            }
+            disabled={loading}
+          >
+            <option>
+              Academic
+            </option>
+
+            <option>
+              Infrastructure
+            </option>
+
+            <option>
+              Cleanliness
+            </option>
+
+            <option>
+              Safety
+            </option>
+
+            <option>
+              Other
+            </option>
+          </select>
+
+          <label>
+            Describe your concern
+          </label>
+
+          <textarea
+            rows="4"
+            value={description}
+            onChange={e =>
+              setDescription(
+                e.target.value
+              )
+            }
+            placeholder="Describe your concern..."
+            disabled={loading}
+            required
+          />
+
+          <button
+            className="btn"
+            disabled={loading}
+          >
+            {loading
+              ? 'Submitting...'
+              : 'Submit complaint'}
+          </button>
+        </form>
+
+        {message && (
+          <p className="ok-box">
+            {message}
+          </p>
+        )}
+
+        {error && (
+          <p className="bad-box">
+            {error}
+          </p>
+        )}
+      </div>
+
+      <SectionTitle>
+        My CampusCare complaints
+      </SectionTitle>
+
+      {items.length === 0 ? (
+        <Empty>
+          No CampusCare complaints
+          found.
+        </Empty>
+      ) : (
+        items.map(item => (
+          <div
+            className="card"
+            key={item.id}
+          >
+            <div className="row">
+              <strong>
+                #{item.id} ·{' '}
+                {item.category}
+              </strong>
+
+              <Tag>
+                {item.status}
+              </Tag>
+            </div>
+
+            <p>
+              {item.description}
+            </p>
+
+            <p className="sub">
+              Raised:{' '}
+              {fmt(
+                item.raised_at
+              )}
+            </p>
+
+            {item.response && (
+              <p className="note">
+                Response:{' '}
+                {item.response}
+              </p>
+            )}
+          </div>
+        ))
+      )}
+    </>
+  )
+}
+
+// =====================================================
 // STUDENT PORTAL
 // =====================================================
 
@@ -1195,6 +1428,12 @@ function StudentPortal({
       id: 'attendance',
       label: 'Attendance',
       icon: '▦',
+    },
+
+    {
+      id: 'campuscare',
+      label: 'CampusCare',
+      icon: '⚑',
     },
   ]
 
@@ -1220,6 +1459,12 @@ function StudentPortal({
         />
       )}
 
+      {tab === 'campuscare' && (
+        <StudentCampusCare
+          token={token}
+        />
+      )}
+
       <BottomNav
         items={nav}
         active={tab}
@@ -1228,7 +1473,6 @@ function StudentPortal({
     </Shell>
   )
 }
-
 // =====================================================
 // FACULTY ATTENDANCE
 // =====================================================
