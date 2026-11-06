@@ -743,11 +743,7 @@ function ScanTab({ token }) {
     try {
  device =
   await navigator.bluetooth.requestDevice({
-    filters: [
-      {
-        namePrefix: 'NEXVIA',
-      },
-    ],
+    acceptAllDevices: true,
     optionalServices: [
       BEACON_SERVICE_UUID,
     ],
