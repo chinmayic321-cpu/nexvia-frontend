@@ -744,7 +744,11 @@ function ScanTab({ token }) {
     try {
 const device =
   await navigator.bluetooth.requestDevice({
-    acceptAllDevices: true,
+    filters: [
+      {
+        name: BEACON_NAME,
+      },
+    ],
     optionalServices: [
       BEACON_SERVICE_UUID,
     ],
