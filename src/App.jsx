@@ -1,64 +1,38 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
 import { Html5Qrcode } from 'html5-qrcode'
-import Biometric from './Biometric'
 
-// Change this URL only when your backend URL changes.
+// Change this URL only when your backend tunnel changes.
 const API = 'https://nexvia-backend-awp6.onrender.com/api'
-
 const BEACON_ID = 'ISE-B204'
 const RSSI_LIMIT = -75
 
-// NEXVIA ESP32 BLE service UUID
-const BEACON_SERVICE_UUID =
-  '12345678-1234-1234-1234-123456789001'
-
 async function call(path, token, options = {}) {
   const { raw = false, ...fetchOptions } = options
-
   const headers = {
     Accept: 'application/json',
-    ...(fetchOptions.body
-      ? { 'Content-Type': 'application/json' }
-      : {}),
+    ...(fetchOptions.body ? { 'Content-Type': 'application/json' } : {}),
     ...(fetchOptions.headers || {}),
   }
 
-  if (token) {
-    headers.Authorization = `Bearer ${token}`
-  }
+  if (token) headers.Authorization = `Bearer ${token}`
 
   let response
-
   try {
-    response = await fetch(`${API}${path}`, {
-      ...fetchOptions,
-      headers,
-    })
+    response = await fetch(`${API}${path}`, { ...fetchOptions, headers })
   } catch {
-    throw new Error(
-      'Cannot reach backend. Check Django and the backend URL.'
-    )
+    throw new Error('Cannot reach backend. Check Django and its Cloudflare tunnel.')
   }
 
   if (raw) {
-    if (!response.ok) {
-      throw new Error(`Request failed: ${response.status}`)
-    }
-
+    if (!response.ok) throw new Error(`Request failed: ${response.status}`)
     return response
   }
 
   const data = await response.json().catch(() => ({}))
-
   if (!response.ok) {
-    throw new Error(
-      data.detail ||
-        data.error ||
-        `Request failed: ${response.status}`
-    )
+    throw new Error(data.detail || data.error || `Request failed: ${response.status}`)
   }
-
   return data
 }
 
@@ -73,93 +47,52 @@ const readLocal = (key, fallback) => {
 const saveLocal = (key, value) =>
   localStorage.setItem(key, JSON.stringify(value))
 
-const fmt = value =>
-  value ? new Date(value).toLocaleString() : '—'
+const fmt = value => value ? new Date(value).toLocaleString() : '—'
 
 function Tag({ children, type = '' }) {
-  return (
-    <span className={`tag ${type}`}>
-      {children}
-    </span>
-  )
+  return <span className={`tag ${type}`}>{children}</span>
 }
 
 function Empty({ children }) {
   return (
-    <div
-      className="card sub"
-      style={{ textAlign: 'center' }}
-    >
+    <div className="card sub" style={{ textAlign: 'center' }}>
       {children}
     </div>
   )
 }
 
 function SectionTitle({ children }) {
-  return (
-    <h3 style={{ marginTop: 20 }}>
-      {children}
-    </h3>
-  )
+  return <h3 style={{ marginTop: 20 }}>{children}</h3>
 }
 
-function Shell({
-  title,
-  subtitle,
-  onLogout,
-  children,
-}) {
+function Shell({ title, subtitle, onLogout, children }) {
   return (
     <div className="app-shell">
       <header className="hero">
-        <div className="sub">
-          NEXVIA · SMART CAMPUS
-        </div>
-
+        <div className="sub">NEXVIA · SMART CAMPUS</div>
         <div className="row">
           <div>
             <h2>{title}</h2>
-
-            <p className="sub">
-              {subtitle}
-            </p>
+            <p className="sub">{subtitle}</p>
           </div>
-
-          <button
-            className="ghost sm"
-            onClick={onLogout}
-          >
-            Logout
-          </button>
+          <button className="ghost sm" onClick={onLogout}>Logout</button>
         </div>
       </header>
-
       <main>{children}</main>
     </div>
   )
 }
 
-function BottomNav({
-  items,
-  active,
-  onChange,
-}) {
+function BottomNav({ items, active, onChange }) {
   return (
     <nav className="bottom-nav">
       {items.map(item => (
         <button
           key={item.id}
-          className={
-            active === item.id
-              ? 'active'
-              : ''
-          }
-          onClick={() =>
-            onChange(item.id)
-          }
+          className={active === item.id ? 'active' : ''}
+          onClick={() => onChange(item.id)}
         >
-          <span>{item.icon}</span>
-          {item.label}
+          <span>{item.icon}</span>{item.label}
         </button>
       ))}
     </nav>
@@ -169,52 +102,30 @@ function BottomNav({
 /* LOGIN */
 
 function Login({ onLogin }) {
-  const [username, setUsername] =
-    useState('')
-
-  const [password, setPassword] =
-    useState('')
-
-  const [role, setRole] =
-    useState('student')
-
-  const [loading, setLoading] =
-    useState(false)
-
-  const [error, setError] =
-    useState('')
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [role, setRole] = useState('student')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
   async function submit(e) {
     e.preventDefault()
-
     setLoading(true)
     setError('')
 
     try {
-      const data = await call(
-        '/login/',
-        null,
-        {
-          method: 'POST',
-
-          body: JSON.stringify({
-            id: username.trim(),
-            password,
-            role,
-          }),
-        }
-      )
+      const data = await call('/login/', null, {
+        method: 'POST',
+        body: JSON.stringify({
+          id: username.trim(),
+          password,
+          role,
+        }),
+      })
 
       if (!data.token || !data.user) {
-        throw new Error(
-          'Invalid login response from server.'
-        )
+        throw new Error('Invalid login response from server.')
       }
-
-      localStorage.setItem(
-        'nexvia_username',
-        username.trim()
-      )
 
       onLogin(data)
     } catch (err) {
@@ -227,88 +138,43 @@ function Login({ onLogin }) {
   return (
     <div className="login-page">
       <div className="hero">
-        <div className="sub">
-          SMART CAMPUS MANAGEMENT
-        </div>
-
+        <div className="sub">SMART CAMPUS MANAGEMENT</div>
         <h1>NEXVIA</h1>
-
-        <p className="sub">
-          One campus. One connected experience.
-        </p>
+        <p className="sub">One campus. One connected experience.</p>
       </div>
 
-      <form
-        className="card"
-        onSubmit={submit}
-      >
+      <form className="card" onSubmit={submit}>
         <h2>Welcome back!</h2>
-
-        <p className="sub">
-          Choose your portal to continue.
-        </p>
+        <p className="sub">Choose your portal to continue.</p>
 
         <label>Login as</label>
-
-        <select
-          value={role}
-          onChange={e =>
-            setRole(e.target.value)
-          }
-        >
-          <option value="student">
-            Student
-          </option>
-
-          <option value="staff">
-            Faculty Staff
-          </option>
-
-          <option value="campuscare">
-            CampusCare Staff
-          </option>
+        <select value={role} onChange={e => setRole(e.target.value)}>
+          <option value="student">Student</option>
+          <option value="staff">Faculty Staff</option>
+          <option value="campuscare">CampusCare Staff</option>
         </select>
 
-        <label>
-          {role === 'student'
-            ? 'USN'
-            : 'Staff ID'}
-        </label>
-
+        <label>{role === 'student' ? 'USN' : 'Staff ID'}</label>
         <input
           value={username}
-          onChange={e =>
-            setUsername(e.target.value)
-          }
+          onChange={e => setUsername(e.target.value)}
           placeholder="Enter your ID"
           required
         />
 
         <label>Password</label>
-
         <input
           type="password"
           value={password}
-          onChange={e =>
-            setPassword(e.target.value)
-          }
+          onChange={e => setPassword(e.target.value)}
           placeholder="Enter your password"
           required
         />
 
-        {error && (
-          <p className="bad-box">
-            {error}
-          </p>
-        )}
+        {error && <p className="bad-box">{error}</p>}
 
-        <button
-          className="btn"
-          disabled={loading}
-        >
-          {loading
-            ? 'Signing in...'
-            : 'Login'}
+        <button className="btn" disabled={loading}>
+          {loading ? 'Signing in...' : 'Login'}
         </button>
       </form>
     </div>
@@ -317,355 +183,151 @@ function Login({ onLogin }) {
 
 /* STUDENT HOME */
 
-function StudentHome({
-  token,
-  user,
-}) {
-  const [attendance, setAttendance] =
-    useState([])
+function StudentHome({ token, user }) {
+  const [attendance, setAttendance] = useState([])
+  const [claims, setClaims] = useState([])
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(true)
 
-  const [claims, setClaims] =
-    useState([])
+  const load = useCallback(async () => {
+    setLoading(true)
+    setError('')
 
-  const [error, setError] =
-    useState('')
+    try {
+      const [a, c] = await Promise.all([
+        call('/attendance/my/', token),
+        call('/complaints/', token),
+      ])
 
-  const [loading, setLoading] =
-    useState(true)
-
-  const load = useCallback(
-    async () => {
-      setLoading(true)
-      setError('')
-
-      try {
-        const [a, c] =
-          await Promise.all([
-            call(
-              '/attendance/my/',
-              token
-            ),
-
-            call(
-              '/complaints/',
-              token
-            ),
-          ])
-
-        setAttendance(
-          Array.isArray(a)
-            ? a
-            : a.results || []
-        )
-
-        setClaims(
-          Array.isArray(c)
-            ? c
-            : c.results || []
-        )
-      } catch (err) {
-        setError(err.message)
-      } finally {
-        setLoading(false)
-      }
-    },
-    [token]
-  )
+      setAttendance(Array.isArray(a) ? a : a.results || [])
+      setClaims(Array.isArray(c) ? c : c.results || [])
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }, [token])
 
   useEffect(() => {
     load()
   }, [load])
 
-  const present =
-    attendance.reduce(
-      (sum, item) =>
-        sum +
-        Number(item.present || 0),
-      0
-    )
-
-  const total =
-    attendance.reduce(
-      (sum, item) =>
-        sum +
-        Number(item.total || 0),
-      0
-    )
-
-  const percent = total
-    ? Math.round(
-        (present / total) * 100
-      )
-    : 0
+  const present = attendance.reduce(
+    (sum, item) => sum + Number(item.present || 0), 0
+  )
+  const total = attendance.reduce(
+    (sum, item) => sum + Number(item.total || 0), 0
+  )
+  const percent = total ? Math.round(present / total * 100) : 0
 
   return (
     <>
       <div className="card">
-        <div className="sub">
-          STUDENT DASHBOARD
-        </div>
+        <div className="sub">STUDENT DASHBOARD</div>
+        <h2>Hello, {user?.name || 'Student'} 👋</h2>
+        <p className="sub">{user?.department || 'ISE'} Department</p>
 
-        <h2>
-          Hello,{' '}
-          {user?.name || 'Student'} 👋
-        </h2>
-
-        <p className="sub">
-          {user?.department || 'ISE'}{' '}
-          Department
-        </p>
-
-        <div
-          className="row"
-          style={{ marginTop: 20 }}
-        >
+        <div className="row" style={{ marginTop: 20 }}>
           <div>
-            <div className="sub">
-              Attendance
-            </div>
-
-            <h1>
-              {loading
-                ? '—'
-                : `${percent}%`}
-            </h1>
+            <div className="sub">Attendance</div>
+            <h1>{loading ? '—' : `${percent}%`}</h1>
           </div>
-
           <div>
-            <div className="sub">
-              Classes attended
-            </div>
-
-            <h2>
-              {loading
-                ? '—'
-                : `${present}/${total}`}
-            </h2>
+            <div className="sub">Classes attended</div>
+            <h2>{loading ? '—' : `${present}/${total}`}</h2>
           </div>
-
           <div>
-            <div className="sub">
-              Claims
-            </div>
-
-            <h2>
-              {loading
-                ? '—'
-                : claims.length}
-            </h2>
+            <div className="sub">Claims</div>
+            <h2>{loading ? '—' : claims.length}</h2>
           </div>
         </div>
       </div>
 
-      {error && (
-        <p className="bad-box">
-          {error}
-        </p>
-      )}
+      {error && <p className="bad-box">{error}</p>}
 
-      <SectionTitle>
-        Subject-wise attendance
-      </SectionTitle>
+      <SectionTitle>Subject-wise attendance</SectionTitle>
 
       {loading ? (
-        <Empty>
-          Loading attendance...
-        </Empty>
+        <Empty>Loading attendance...</Empty>
       ) : attendance.length === 0 ? (
-        <Empty>
-          No attendance records
-          available.
-        </Empty>
+        <Empty>No attendance records available.</Empty>
       ) : (
-        attendance.map(
-          (item, index) => {
-            const p = Number(
-              item.percent ??
-                (item.total
-                  ? (item.present /
-                      item.total) *
-                    100
-                  : 0)
+        attendance.map((item, index) => {
+          const p = Number(
+            item.percent ?? (
+              item.total ? item.present / item.total * 100 : 0
             )
+          )
 
-            return (
-              <div
-                className="card"
-                key={
-                  item.id ||
-                  item.course ||
-                  index
-                }
-              >
-                <div className="row">
-                  <strong>
-                    {item.course ||
-                      item.subject ||
-                      'Subject'}
-                  </strong>
-
-                  <Tag
-                    type={
-                      p >= 75
-                        ? 'ok'
-                        : 'bad'
-                    }
-                  >
-                    {Math.round(p)}%
-                  </Tag>
-                </div>
-
-                <p className="sub">
-                  {item.present || 0}{' '}
-                  / {item.total || 0}{' '}
-                  classes attended
-                </p>
-
-                <div className="bar">
-                  <div
-                    style={{
-                      width: `${Math.min(
-                        100,
-                        p
-                      )}%`,
-                    }}
-                  />
-                </div>
+          return (
+            <div className="card" key={item.id || item.course || index}>
+              <div className="row">
+                <strong>{item.course || item.subject || 'Subject'}</strong>
+                <Tag type={p >= 75 ? 'ok' : 'bad'}>{Math.round(p)}%</Tag>
               </div>
-            )
-          }
-        )
+              <p className="sub">
+                {item.present || 0} / {item.total || 0} classes attended
+              </p>
+              <div className="bar">
+                <div style={{ width: `${Math.min(100, p)}%` }} />
+              </div>
+            </div>
+          )
+        })
       )}
 
-      <SectionTitle>
-        Timetable
-      </SectionTitle>
+      <SectionTitle>Timetable</SectionTitle>
 
-      {readLocal(
-        'nexvia_timetable',
-        []
-      ).length === 0 ? (
-        <Empty>
-          No timetable entries
-          added yet.
-        </Empty>
+      {readLocal('nexvia_timetable', []).length === 0 ? (
+        <Empty>No timetable entries added yet.</Empty>
       ) : (
-        readLocal(
-          'nexvia_timetable',
-          []
-        ).map(item => (
-          <div
-            className="card"
-            key={item.id}
-          >
-            <strong>
-              {item.subject}
-            </strong>
-
-            <p className="sub">
-              {item.day} · {item.time}
-            </p>
+        readLocal('nexvia_timetable', []).map(item => (
+          <div className="card" key={item.id}>
+            <strong>{item.subject}</strong>
+            <p className="sub">{item.day} · {item.time}</p>
           </div>
         ))
       )}
-
-      {/* BIOMETRIC */}
-
-      <SectionTitle>
-        Biometric Attendance
-      </SectionTitle>
-
-      <Biometric />
     </>
   )
 }
 
 /* QR CAMERA */
 
-function QRScanner({
-  onScan,
-  onClose,
-}) {
-  const [error, setError] =
-    useState('')
+function QRScanner({ onScan, onClose }) {
+  const [error, setError] = useState('')
 
   useEffect(() => {
     let mounted = true
+    const instance = new Html5Qrcode('nexvia-qr-reader')
 
-    const instance =
-      new Html5Qrcode(
-        'nexvia-qr-reader'
-      )
-
-    instance
-      .start(
-        {
-          facingMode:
-            'environment',
-        },
-
-        {
-          fps: 10,
-          qrbox: {
-            width: 220,
-            height: 220,
-          },
-        },
-
-        text => {
-          if (!mounted) return
-
-          onScan(text)
-
-          instance
-            .stop()
-            .catch(() => {})
-        },
-
-        () => {}
-      )
-      .catch(err => {
-        if (mounted) {
-          setError(
-            err.message ||
-              'Camera could not start.'
-          )
-        }
-      })
+    instance.start(
+      { facingMode: 'environment' },
+      { fps: 10, qrbox: { width: 220, height: 220 } },
+      text => {
+        if (!mounted) return
+        onScan(text)
+        instance.stop().catch(() => {})
+      },
+      () => {}
+    ).catch(err => {
+      if (mounted) setError(err.message || 'Camera could not start.')
+    })
 
     return () => {
       mounted = false
-
-      if (instance.isScanning) {
-        instance
-          .stop()
-          .catch(() => {})
-      }
+      if (instance.isScanning) instance.stop().catch(() => {})
     }
   }, [onScan])
 
   return (
     <div className="card">
       <div className="row">
-        <h3>
-          Scan QR code
-        </h3>
-
-        <button
-          className="ghost sm"
-          onClick={onClose}
-        >
-          Close
-        </button>
+        <h3>Scan QR code</h3>
+        <button className="ghost sm" onClick={onClose}>Close</button>
       </div>
-
       <div id="nexvia-qr-reader" />
-
-      {error && (
-        <p className="bad-box">
-          {error}
-        </p>
-      )}
+      {error && <p className="bad-box">{error}</p>}
     </div>
   )
 }
@@ -673,361 +335,21 @@ function QRScanner({
 /* STUDENT QR ATTENDANCE */
 
 function ScanTab({ token }) {
-  const [camera, setCamera] =
-    useState(false)
+  const [camera, setCamera] = useState(false)
+  const [qr, setQr] = useState('')
+  const [manual, setManual] = useState('')
+  const [rssi, setRssi] = useState(-60)
+  const [message, setMessage] = useState('')
+  const [busy, setBusy] = useState(false)
 
-  const [qr, setQr] =
-    useState('')
+  const handleScan = useCallback(value => {
+    setQr(value)
+    setCamera(false)
+  }, [])
 
-  const [manual, setManual] =
-    useState('')
-
-  const [rssi, setRssi] =
-    useState(-60)
-
-  const [message, setMessage] =
-    useState('')
-
-  const [busy, setBusy] =
-    useState(false)
-
-  const [step, setStep] =
-    useState('idle')
-
-  const handleScan =
-    useCallback(value => {
-      setQr(value)
-      setCamera(false)
-      setMessage('')
-      setStep('qr')
-    }, [])
-
-  /*
-   * Check the physical NEXVIA ESP32 beacon.
-   *
-   * On Android Chrome this opens the Bluetooth
-   * device selector. The student selects:
-   *
-   * NEXVIA-ISE-B204
-   *
-   * The browser connects to the ESP32 GATT
-   * service and confirms that the beacon exists.
-   */
-  async function checkNexviaBeacon() {
-    if (
-      !navigator.bluetooth ||
-      !navigator.bluetooth.requestDevice
-    ) {
-      return {
-        success: false,
-        supported: false,
-        rssi: rssi,
-        message:
-          'Bluetooth is not available in this browser. Using demo proximity verification.',
-      }
-    }
-
-    try {
-      setStep('beacon')
-      setMessage(
-        'Searching for NEXVIA beacon...'
-      )
-
-      const device =
-        await navigator.bluetooth.requestDevice(
-          {
-            filters: [
-              {
-                services: [
-                  BEACON_SERVICE_UUID,
-                ],
-              },
-            ],
-
-            optionalServices: [
-              BEACON_SERVICE_UUID,
-            ],
-          }
-        )
-
-      if (!device) {
-        return {
-          success: false,
-          supported: true,
-          rssi,
-          message:
-            'NEXVIA beacon was not selected.',
-        }
-      }
-
-      setMessage(
-        'NEXVIA beacon found. Connecting...'
-      )
-
-      if (
-        !device.gatt
-      ) {
-        return {
-          success: false,
-          supported: true,
-          rssi,
-          message:
-            'Bluetooth GATT is not available on this device.',
-        }
-      }
-
-      const server =
-        await device.gatt.connect()
-
-      await server.getPrimaryService(
-        BEACON_SERVICE_UUID
-      )
-
-      setMessage(
-        '✅ NEXVIA beacon verified.'
-      )
-
-      if (
-        device.gatt.connected
-      ) {
-        device.gatt.disconnect()
-      }
-
-      return {
-        success: true,
-        supported: true,
-        rssi: -60,
-        message:
-          'NEXVIA beacon verified successfully.',
-      }
-    } catch (error) {
-      console.error(
-        'Beacon error:',
-        error
-      )
-
-      if (
-        error.name ===
-        'NotFoundError'
-      ) {
-        return {
-          success: false,
-          supported: true,
-          rssi,
-          message:
-            'No NEXVIA beacon selected. Please select NEXVIA-ISE-B204.',
-        }
-      }
-
-      if (
-        error.name ===
-        'NotAllowedError'
-      ) {
-        return {
-          success: false,
-          supported: true,
-          rssi,
-          message:
-            'Bluetooth permission was cancelled.',
-        }
-      }
-
-      return {
-        success: false,
-        supported: true,
-        rssi,
-        message:
-          'Beacon verification failed: ' +
-          error.message,
-      }
-    }
-  }
-
-  /*
-   * Frontend/device-level biometric verification.
-   *
-   * Uses WebAuthn/platform authenticator:
-   * fingerprint, face unlock, or device PIN.
-   *
-   * The actual fingerprint/face data is NOT
-   * stored by NEXVIA.
-   */
-  async function verifyAttendanceBiometric() {
-    setStep('biometric')
-    setMessage(
-      'Waiting for biometric verification...'
-    )
-
-    if (
-      !window.PublicKeyCredential ||
-      !navigator.credentials
-    ) {
-      throw new Error(
-        'Biometric authentication is not supported on this device/browser.'
-      )
-    }
-
-    const username =
-      localStorage.getItem(
-        'nexvia_username'
-      ) ||
-      'nexvia-student'
-
-    const storedCredential =
-      localStorage.getItem(
-        'nexvia_biometric_credential'
-      )
-
-    /*
-     * First-time registration.
-     */
-    if (!storedCredential) {
-      const userId =
-        new TextEncoder().encode(
-          username
-        )
-
-      const credential =
-        await navigator.credentials.create(
-          {
-            publicKey: {
-              challenge:
-                crypto.getRandomValues(
-                  new Uint8Array(32)
-                ),
-
-              rp: {
-                name:
-                  'NEXVIA Smart Campus',
-
-                id:
-                  window.location.hostname,
-              },
-
-              user: {
-                id: userId,
-                name: username,
-                displayName:
-                  username,
-              },
-
-              pubKeyCredParams: [
-                {
-                  type: 'public-key',
-                  alg: -7,
-                },
-
-                {
-                  type: 'public-key',
-                  alg: -257,
-                },
-              ],
-
-              authenticatorSelection: {
-                authenticatorAttachment:
-                  'platform',
-
-                userVerification:
-                  'required',
-              },
-
-              timeout: 60000,
-
-              attestation:
-                'none',
-            },
-          }
-        )
-
-      if (!credential) {
-        throw new Error(
-          'Biometric registration was not completed.'
-        )
-      }
-
-      const credentialId =
-        btoa(
-          String.fromCharCode(
-            ...new Uint8Array(
-              credential.rawId
-            )
-          )
-        )
-
-      localStorage.setItem(
-        'nexvia_biometric_credential',
-        credentialId
-      )
-
-      setMessage(
-        '✅ Biometric registered and verified.'
-      )
-
-      return true
-    }
-
-    /*
-     * Existing biometric.
-     */
-    const credentialId =
-      Uint8Array.from(
-        atob(storedCredential),
-        c => c.charCodeAt(0)
-      )
-
-    const credential =
-      await navigator.credentials.get(
-        {
-          publicKey: {
-            challenge:
-              crypto.getRandomValues(
-                new Uint8Array(32)
-              ),
-
-            allowCredentials: [
-              {
-                type: 'public-key',
-                id: credentialId,
-              },
-            ],
-
-            userVerification:
-              'required',
-
-            timeout: 60000,
-          },
-        }
-      )
-
-    if (!credential) {
-      throw new Error(
-        'Biometric verification was not completed.'
-      )
-    }
-
-    setMessage(
-      '✅ Biometric verified successfully.'
-    )
-
-    return true
-  }
-
-  /*
-   * Complete attendance flow:
-   *
-   * QR
-   * ↓
-   * ESP32 Beacon
-   * ↓
-   * Biometric
-   * ↓
-   * Django attendance API
-   */
-  async function verifyAndMark(value) {
-    if (!value?.trim()) {
-      setMessage(
-        'Please scan or enter a QR token.'
-      )
+  async function mark(value) {
+    if (rssi < RSSI_LIMIT) {
+      setMessage('You are outside the permitted beacon range.')
       return
     }
 
@@ -1035,122 +357,20 @@ function ScanTab({ token }) {
     setMessage('')
 
     try {
-      /*
-       * STEP 1 — QR already scanned.
-       */
-      setStep('qr')
+      const result = await call('/attendance/mark/', token, {
+        method: 'POST',
+        body: JSON.stringify({
+          qr_token: value,
+          beacon_id: BEACON_ID,
+          rssi,
+        }),
+      })
 
-      setMessage(
-        'QR verified. Checking NEXVIA beacon...'
-      )
-
-      /*
-       * STEP 2 — Beacon.
-       */
-      const beacon =
-        await checkNexviaBeacon()
-
-      /*
-       * If Bluetooth is supported,
-       * require actual beacon verification.
-       *
-       * If Bluetooth is unavailable,
-       * keep the existing demo RSSI mechanism
-       * so the project can still be demonstrated.
-       */
-      let verifiedRssi = rssi
-
-      if (
-        beacon.supported
-      ) {
-        if (!beacon.success) {
-          throw new Error(
-            beacon.message
-          )
-        }
-
-        verifiedRssi =
-          beacon.rssi
-      } else {
-        if (
-          rssi < RSSI_LIMIT
-        ) {
-          throw new Error(
-            'You are outside the permitted beacon range.'
-          )
-        }
-
-        setMessage(
-          'Bluetooth unavailable. Demo proximity accepted.'
-        )
-      }
-
-      /*
-       * STEP 3 — Biometric.
-       */
-      setStep('biometric')
-
-      await verifyAttendanceBiometric()
-
-      /*
-       * STEP 4 — Mark attendance.
-       */
-      setStep('attendance')
-
-      setMessage(
-        'Biometric verified. Marking attendance...'
-      )
-
-      const result =
-        await call(
-          '/attendance/mark/',
-          token,
-          {
-            method: 'POST',
-
-            body: JSON.stringify({
-              qr_token:
-                value.trim(),
-
-              beacon_id:
-                BEACON_ID,
-
-              rssi:
-                verifiedRssi,
-            }),
-          }
-        )
-
-      /*
-       * STEP 5 — Success.
-       */
-      setStep('success')
-
-      setMessage(
-        result.message ||
-          '🎉 Attendance marked successfully!'
-      )
-
+      setMessage(result.message || 'Attendance marked successfully!')
       setQr('')
       setManual('')
     } catch (err) {
-      console.error(err)
-
-      setStep('error')
-
-      if (
-        err.name ===
-        'NotAllowedError'
-      ) {
-        setMessage(
-          '⚠️ Biometric verification was cancelled or not allowed.'
-        )
-      } else {
-        setMessage(
-          err.message ||
-            'Attendance verification failed.'
-        )
-      }
+      setMessage(err.message)
     } finally {
       setBusy(false)
     }
@@ -1159,341 +379,88 @@ function ScanTab({ token }) {
   return (
     <>
       <div className="card">
-        <h2>
-          Scan attendance QR
-        </h2>
+        <h2>Scan attendance QR</h2>
+        <p className="sub">Scan the QR code displayed by your faculty.</p>
 
-        <p className="sub">
-          Complete the attendance
-          verification in this order:
-        </p>
-
-        <div
-          className="card"
-          style={{
-            marginTop: 15,
-          }}
-        >
-          <p>
-            <strong>
-              1️⃣ Scan QR
-            </strong>
-          </p>
-
-          <p className="sub">
-            Scan the QR code displayed
-            by your faculty.
-          </p>
-
-          <p>
-            <strong>
-              ↓
-            </strong>
-          </p>
-
-          <p>
-            <strong>
-              2️⃣ NEXVIA Beacon
-            </strong>
-          </p>
-
-          <p className="sub">
-            Verify that you are near
-            the classroom ESP32 beacon.
-          </p>
-
-          <p>
-            <strong>
-              ↓
-            </strong>
-          </p>
-
-          <p>
-            <strong>
-              3️⃣ Biometric
-            </strong>
-          </p>
-
-          <p className="sub">
-            Verify using fingerprint,
-            face unlock, or device PIN.
-          </p>
-
-          <p>
-            <strong>
-              ↓
-            </strong>
-          </p>
-
-          <p>
-            <strong>
-              4️⃣ Attendance
-            </strong>
-          </p>
-
-          <p className="sub">
-            Attendance is submitted to
-            the NEXVIA backend.
-          </p>
-        </div>
-
-        <button
-          className="btn"
-          onClick={() =>
-            setCamera(true)
-          }
-          disabled={busy}
-        >
-          📷 Open camera scanner
+        <button className="btn" onClick={() => setCamera(true)}>
+          Open camera scanner
         </button>
 
         {camera && (
           <QRScanner
             onScan={handleScan}
-            onClose={() =>
-              setCamera(false)
-            }
+            onClose={() => setCamera(false)}
           />
         )}
 
         {qr && (
           <div className="card">
-            <p className="ok-box">
-              ✅ QR code scanned
-              successfully.
-            </p>
-
-            <p className="sub">
-              Your QR token is ready.
-              Tap the button below to
-              start beacon and biometric
-              verification.
-            </p>
-
+            <p className="ok-box">QR code scanned successfully.</p>
             <button
               className="btn"
               disabled={busy}
-              onClick={() =>
-                verifyAndMark(qr)
-              }
+              onClick={() => mark(qr)}
             >
-              {busy
-                ? 'Verifying...'
-                : '🔐 Verify & Mark Attendance'}
+              {busy ? 'Submitting...' : 'Mark attendance'}
             </button>
           </div>
         )}
 
-        <SectionTitle>
-          Manual QR entry
-        </SectionTitle>
-
+        <SectionTitle>Manual QR entry</SectionTitle>
         <input
           value={manual}
-          onChange={e =>
-            setManual(
-              e.target.value
-            )
-          }
+          onChange={e => setManual(e.target.value)}
           placeholder="Enter QR token"
         />
 
         <button
           className="btn"
-          disabled={
-            !manual.trim() ||
-            busy
-          }
-          onClick={() =>
-            verifyAndMark(
-              manual.trim()
-            )
-          }
+          disabled={!manual.trim() || busy}
+          onClick={() => mark(manual.trim())}
         >
           Submit token
         </button>
 
-        {message && (
-          <div
-            className={
-              step === 'success'
-                ? 'ok-box'
-                : step === 'error'
-                ? 'bad-box'
-                : 'note'
-            }
-            style={{
-              marginTop: 15,
-            }}
-          >
-            {message}
-          </div>
-        )}
+        {message && <p className="note">{message}</p>}
       </div>
 
       <div className="card">
-        <h3>
-          NEXVIA Beacon
-        </h3>
-
+        <h3>Proximity verification</h3>
         <p className="sub">
-          Physical ESP32 beacon:
-          <strong>
-            {' '}
-            NEXVIA-ISE-B204
-          </strong>
+          Demo signal strength. This is simulated, not a real BLE scan.
         </p>
-
-        <p className="sub">
-          Beacon ID:
-          <strong>
-            {' '}
-            ISE-B204
-          </strong>
-        </p>
-
-        <p className="sub">
-          The phone will ask you to
-          select the NEXVIA ESP32
-          during attendance verification.
-        </p>
-
-        <Tag
-          type={
-            step === 'beacon'
-              ? ''
-              : step === 'success'
-              ? 'ok'
-              : ''
-          }
-        >
-          {step === 'beacon'
-            ? 'Searching for beacon...'
-            : step === 'success'
-            ? 'Beacon verified'
-            : 'Ready'}
-        </Tag>
-      </div>
-
-      <div className="card">
-        <h3>
-          Biometric verification
-        </h3>
-
-        <p className="sub">
-          NEXVIA uses the device
-          authentication system.
-        </p>
-
-        <p className="sub">
-          Depending on the phone, this
-          may use fingerprint, face
-          unlock, or device PIN.
-        </p>
-
-        <Tag
-          type={
-            step === 'biometric'
-              ? ''
-              : step === 'success'
-              ? 'ok'
-              : ''
-          }
-        >
-          {step === 'biometric'
-            ? 'Waiting for biometric...'
-            : step === 'success'
-            ? 'Biometric verified'
-            : 'Ready'}
-        </Tag>
-      </div>
-
-      <div className="card">
-        <h3>
-          Demo proximity fallback
-        </h3>
-
-        <p className="sub">
-          If Bluetooth is not available
-          in the browser, this demo
-          signal-strength control can
-          still be used.
-        </p>
-
-        <label>
-          Signal strength: {rssi} dBm
-        </label>
-
+        <label>Signal strength: {rssi} dBm</label>
         <input
           type="range"
           min="-100"
           max="-40"
           value={rssi}
-          onChange={e =>
-            setRssi(
-              Number(
-                e.target.value
-              )
-            )
-          }
+          onChange={e => setRssi(Number(e.target.value))}
         />
-
-        <Tag
-          type={
-            rssi >= RSSI_LIMIT
-              ? 'ok'
-              : 'bad'
-          }
-        >
-          {rssi >= RSSI_LIMIT
-            ? 'Within range'
-            : 'Outside range'}
+        <Tag type={rssi >= RSSI_LIMIT ? 'ok' : 'bad'}>
+          {rssi >= RSSI_LIMIT ? 'Within range' : 'Outside range'}
         </Tag>
       </div>
     </>
   )
 }
-
 /* STUDENT CAMPUSCARE */
 
-function StudentCare({
-  token,
-}) {
-  const [items, setItems] =
-    useState([])
+function StudentCare({ token }) {
+  const [items, setItems] = useState([])
+  const [category, setCategory] = useState('Infrastructure')
+  const [description, setDescription] = useState('')
+  const [message, setMessage] = useState('')
+  const [busy, setBusy] = useState(false)
 
-  const [category, setCategory] =
-    useState('Infrastructure')
-
-  const [description, setDescription] =
-    useState('')
-
-  const [message, setMessage] =
-    useState('')
-
-  const [busy, setBusy] =
-    useState(false)
-
-  const load = useCallback(
-    async () => {
-      try {
-        const data =
-          await call(
-            '/complaints/',
-            token
-          )
-
-        setItems(
-          Array.isArray(data)
-            ? data
-            : data.results || []
-        )
-      } catch (err) {
-        setMessage(err.message)
-      }
-    },
-    [token]
-  )
+  const load = useCallback(async () => {
+    try {
+      const data = await call('/complaints/', token)
+      setItems(Array.isArray(data) ? data : data.results || [])
+    } catch (err) {
+      setMessage(err.message)
+    }
+  }, [token])
 
   useEffect(() => {
     load()
@@ -1501,30 +468,16 @@ function StudentCare({
 
   async function submit(e) {
     e.preventDefault()
-
     setBusy(true)
     setMessage('')
 
     try {
-      await call(
-        '/complaints/',
-        token,
-        {
-          method: 'POST',
-
-          body: JSON.stringify({
-            category,
-            description,
-          }),
-        }
-      )
-
+      await call('/complaints/', token, {
+        method: 'POST',
+        body: JSON.stringify({ category, description }),
+      })
       setDescription('')
-
-      setMessage(
-        'Complaint submitted successfully.'
-      )
-
+      setMessage('Complaint submitted successfully.')
       await load()
     } catch (err) {
       setMessage(err.message)
@@ -1536,29 +489,14 @@ function StudentCare({
   return (
     <>
       <div className="card">
-        <h2>
-          CampusCare
-        </h2>
+        <h2>CampusCare</h2>
+        <p className="sub">Raise a concern and track its progress.</p>
 
-        <p className="sub">
-          Raise a concern and track
-          its progress.
-        </p>
-
-        <form
-          onSubmit={submit}
-        >
-          <label>
-            Category
-          </label>
-
+        <form onSubmit={submit}>
+          <label>Category</label>
           <select
             value={category}
-            onChange={e =>
-              setCategory(
-                e.target.value
-              )
-            }
+            onChange={e => setCategory(e.target.value)}
           >
             {[
               'Infrastructure',
@@ -1567,87 +505,41 @@ function StudentCare({
               'Laboratory',
               'Hostel',
               'Other',
-            ].map(x => (
-              <option key={x}>
-                {x}
-              </option>
-            ))}
+            ].map(x => <option key={x}>{x}</option>)}
           </select>
 
-          <label>
-            Description
-          </label>
-
+          <label>Description</label>
           <textarea
             rows="4"
             value={description}
-            onChange={e =>
-              setDescription(
-                e.target.value
-              )
-            }
+            onChange={e => setDescription(e.target.value)}
             placeholder="Describe your concern..."
             required
           />
 
-          <button
-            className="btn"
-            disabled={busy}
-          >
-            {busy
-              ? 'Submitting...'
-              : 'Submit complaint'}
+          <button className="btn" disabled={busy}>
+            {busy ? 'Submitting...' : 'Submit complaint'}
           </button>
         </form>
 
-        {message && (
-          <p className="note">
-            {message}
-          </p>
-        )}
+        {message && <p className="note">{message}</p>}
       </div>
 
-      <SectionTitle>
-        My complaints
-      </SectionTitle>
+      <SectionTitle>My complaints</SectionTitle>
 
       {items.length === 0 ? (
-        <Empty>
-          No complaints submitted
-          yet.
-        </Empty>
+        <Empty>No complaints submitted yet.</Empty>
       ) : (
         items.map(item => (
-          <div
-            className="card"
-            key={item.id}
-          >
+          <div className="card" key={item.id}>
             <div className="row">
-              <strong>
-                {item.category}
-              </strong>
-
-              <Tag>
-                {item.status}
-              </Tag>
+              <strong>{item.category}</strong>
+              <Tag>{item.status}</Tag>
             </div>
-
-            <p>
-              {item.description}
-            </p>
-
-            <p className="sub">
-              Raised:{' '}
-              {fmt(
-                item.raised_at
-              )}
-            </p>
-
+            <p>{item.description}</p>
+            <p className="sub">Raised: {fmt(item.raised_at)}</p>
             {item.response && (
-              <p className="note">
-                Response:{' '}
-                {item.response}
-              </p>
+              <p className="note">Response: {item.response}</p>
             )}
           </div>
         ))
@@ -1658,32 +550,13 @@ function StudentCare({
 
 /* STUDENT PORTAL */
 
-function Student({
-  token,
-  user,
-  onLogout,
-}) {
-  const [tab, setTab] =
-    useState('home')
+function Student({ token, user, onLogout }) {
+  const [tab, setTab] = useState('home')
 
   const nav = [
-    {
-      id: 'home',
-      label: 'Home',
-      icon: '⌂',
-    },
-
-    {
-      id: 'scan',
-      label: 'Scan QR',
-      icon: '▦',
-    },
-
-    {
-      id: 'care',
-      label: 'CampusCare',
-      icon: '♡',
-    },
+    { id: 'home', label: 'Home', icon: '⌂' },
+    { id: 'scan', label: 'Scan QR', icon: '▦' },
+    { id: 'care', label: 'CampusCare', icon: '♡' },
   ]
 
   return (
@@ -1692,88 +565,40 @@ function Student({
       subtitle="Your campus at a glance"
       onLogout={onLogout}
     >
-      {tab === 'home' && (
-        <StudentHome
-          token={token}
-          user={user}
-        />
-      )}
+      {tab === 'home' && <StudentHome token={token} user={user} />}
+      {tab === 'scan' && <ScanTab token={token} />}
+      {tab === 'care' && <StudentCare token={token} />}
 
-      {tab === 'scan' && (
-        <ScanTab
-          token={token}
-        />
-      )}
-
-      {tab === 'care' && (
-        <StudentCare
-          token={token}
-        />
-      )}
-
-      <BottomNav
-        items={nav}
-        active={tab}
-        onChange={setTab}
-      />
+      <BottomNav items={nav} active={tab} onChange={setTab} />
     </Shell>
   )
 }
 
 /* FACULTY: DATABASE-BACKED STUDENT ROSTER */
 
-function StaffStudents({
-  token,
-}) {
-  const [students, setStudents] =
-    useState([])
+function StaffStudents({ token }) {
+  const [students, setStudents] = useState([])
+  const [name, setName] = useState('')
+  const [usn, setUsn] = useState('')
+  const [password, setPassword] = useState('demo1234')
+  const [busy, setBusy] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
 
-  const [name, setName] =
-    useState('')
+  const load = useCallback(async () => {
+    setLoading(true)
+    setError('')
 
-  const [usn, setUsn] =
-    useState('')
-
-  const [password, setPassword] =
-    useState('demo1234')
-
-  const [busy, setBusy] =
-    useState(false)
-
-  const [loading, setLoading] =
-    useState(true)
-
-  const [message, setMessage] =
-    useState('')
-
-  const [error, setError] =
-    useState('')
-
-  const load = useCallback(
-    async () => {
-      setLoading(true)
-      setError('')
-
-      try {
-        const data =
-          await call(
-            '/students/',
-            token
-          )
-
-        setStudents(
-          Array.isArray(data)
-            ? data
-            : data.results || []
-        )
-      } catch (err) {
-        setError(err.message)
-      } finally {
-        setLoading(false)
-      }
-    },
-    [token]
-  )
+    try {
+      const data = await call('/students/', token)
+      setStudents(Array.isArray(data) ? data : data.results || [])
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }, [token])
 
   useEffect(() => {
     load()
@@ -1781,47 +606,23 @@ function StaffStudents({
 
   async function addStudent(e) {
     e.preventDefault()
-
     setBusy(true)
     setMessage('')
     setError('')
 
     try {
-      const created =
-        await call(
-          '/students/',
-          token,
-          {
-            method: 'POST',
-
-            body: JSON.stringify({
-              name,
-              usn,
-              password,
-            }),
-          }
-        )
+      const created = await call('/students/', token, {
+        method: 'POST',
+        body: JSON.stringify({ name, usn, password }),
+      })
 
       setStudents(old =>
-        [
-          ...old,
-          created,
-        ].sort((a, b) =>
-          a.id.localeCompare(
-            b.id
-          )
-        )
+        [...old, created].sort((a, b) => a.id.localeCompare(b.id))
       )
-
       setName('')
       setUsn('')
-      setPassword(
-        'demo1234'
-      )
-
-      setMessage(
-        `Student ${created.id} added to the database.`
-      )
+      setPassword('demo1234')
+      setMessage(`Student ${created.id} added to the database.`)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -1832,140 +633,70 @@ function StaffStudents({
   return (
     <>
       <div className="card">
-        <h2>
-          Student management
-        </h2>
-
+        <h2>Student management</h2>
         <p className="sub">
-          Add students once. Their
-          records are saved in the
-          Django database and become
-          available to attendance
-          reports.
+          Add students once. Their records are saved in the Django database
+          and become available to attendance reports.
         </p>
 
-        <form
-          onSubmit={addStudent}
-        >
-          <label>
-            Student full name
-          </label>
-
+        <form onSubmit={addStudent}>
+          <label>Student full name</label>
           <input
             value={name}
-            onChange={e =>
-              setName(
-                e.target.value
-              )
-            }
+            onChange={e => setName(e.target.value)}
             placeholder="e.g. Ananya Rao"
             required
           />
 
-          <label>
-            USN
-          </label>
-
+          <label>USN</label>
           <input
             value={usn}
-            onChange={e =>
-              setUsn(
-                e.target.value.toUpperCase()
-              )
-            }
+            onChange={e => setUsn(e.target.value.toUpperCase())}
             placeholder="e.g. 4MC24IS101"
             required
           />
 
-          <label>
-            Student login password
-          </label>
-
+          <label>Student login password</label>
           <input
             type="text"
             value={password}
-            onChange={e =>
-              setPassword(
-                e.target.value
-              )
-            }
+            onChange={e => setPassword(e.target.value)}
             minLength="6"
             required
           />
 
           <p className="sub">
-            Default password is
-            demo1234. You can set a
-            different temporary password
-            for each student.
+            Default password is demo1234. You can set a different temporary
+            password for each student.
           </p>
 
-          <button
-            className="btn"
-            disabled={busy}
-          >
-            {busy
-              ? 'Adding student...'
-              : 'Add student to database'}
+          <button className="btn" disabled={busy}>
+            {busy ? 'Adding student...' : 'Add student to database'}
           </button>
         </form>
 
-        {message && (
-          <p className="ok-box">
-            {message}
-          </p>
-        )}
-
-        {error && (
-          <p className="bad-box">
-            {error}
-          </p>
-        )}
+        {message && <p className="ok-box">{message}</p>}
+        {error && <p className="bad-box">{error}</p>}
       </div>
 
       <div className="row">
-        <SectionTitle>
-          Registered students
-        </SectionTitle>
-
-        <button
-          className="ghost sm"
-          onClick={load}
-        >
-          Refresh list
-        </button>
+        <SectionTitle>Registered students</SectionTitle>
+        <button className="ghost sm" onClick={load}>Refresh list</button>
       </div>
 
       {loading ? (
-        <Empty>
-          Loading student list...
-        </Empty>
+        <Empty>Loading student list...</Empty>
       ) : students.length === 0 ? (
-        <Empty>
-          No students registered yet.
-          Add the first student above.
-        </Empty>
+        <Empty>No students registered yet. Add the first student above.</Empty>
       ) : (
         students.map(student => (
-          <div
-            className="card"
-            key={student.id}
-          >
+          <div className="card" key={student.id}>
             <div className="row">
-              <strong>
-                {student.name ||
-                  student.username}
-              </strong>
-
-              <Tag type="ok">
-                Student
-              </Tag>
+              <strong>{student.name || student.username}</strong>
+              <Tag type="ok">Student</Tag>
             </div>
-
             <p className="sub">
-              USN: {student.id} ·
-              Department:{' '}
-              {student.department}
+              USN: {student.id} · Department: {student.department}
             </p>
           </div>
         ))
@@ -1976,104 +707,53 @@ function StaffStudents({
 
 /* FACULTY ATTENDANCE */
 
-function StaffSession({
-  token,
-}) {
-  const [session, setSession] =
-    useState(null)
+function StaffSession({ token }) {
+  const [session, setSession] = useState(null)
+  const [course, setCourse] = useState('Computer Networks')
+  const [semester, setSemester] = useState('5')
+  const [seconds, setSeconds] = useState(30)
+  const [busy, setBusy] = useState(false)
+  const [message, setMessage] = useState('')
+  const [roster, setRoster] = useState([])
 
-  const [course, setCourse] =
-    useState(
-      'Computer Networks'
-    )
+  const refresh = useCallback(async id => {
+    try {
+      const data = await call(
+        `/attendance/sessions/${id}/refresh/`,
+        token,
+        { method: 'POST' }
+      )
+      setSession(data)
+      setSeconds(30)
+    } catch (err) {
+      setMessage(err.message)
+    }
+  }, [token])
 
-  const [semester, setSemester] =
-    useState('5')
-
-  const [seconds, setSeconds] =
-    useState(30)
-
-  const [busy, setBusy] =
-    useState(false)
-
-  const [message, setMessage] =
-    useState('')
-
-  const [roster, setRoster] =
-    useState([])
-
-  const refresh =
-    useCallback(
-      async id => {
-        try {
-          const data =
-            await call(
-              `/attendance/sessions/${id}/refresh/`,
-              token,
-              {
-                method: 'POST',
-              }
-            )
-
-          setSession(data)
-          setSeconds(30)
-        } catch (err) {
-          setMessage(
-            err.message
-          )
-        }
-      },
-      [token]
-    )
-
-  const loadRoster =
-    useCallback(
-      async id => {
-        try {
-          const data =
-            await call(
-              `/attendance/sessions/${id}/report/`,
-              token
-            )
-
-          setRoster(
-            data.rows ||
-              data.records ||
-              []
-          )
-        } catch (err) {
-          setMessage(
-            err.message
-          )
-        }
-      },
-      [token]
-    )
+  const loadRoster = useCallback(async id => {
+    try {
+      const data = await call(`/attendance/sessions/${id}/report/`, token)
+      setRoster(data.rows || data.records || [])
+    } catch (err) {
+      setMessage(err.message)
+    }
+  }, [token])
 
   useEffect(() => {
     if (!session?.id) return
 
-    const timer =
-      setInterval(() => {
-        setSeconds(value => {
-          if (value <= 1) {
-            refresh(
-              session.id
-            )
+    const timer = setInterval(() => {
+      setSeconds(value => {
+        if (value <= 1) {
+          refresh(session.id)
+          return 30
+        }
+        return value - 1
+      })
+    }, 1000)
 
-            return 30
-          }
-
-          return value - 1
-        })
-      }, 1000)
-
-    return () =>
-      clearInterval(timer)
-  }, [
-    session?.id,
-    refresh,
-  ])
+    return () => clearInterval(timer)
+  }, [session?.id, refresh])
 
   async function start() {
     setBusy(true)
@@ -2081,32 +761,20 @@ function StaffSession({
     setRoster([])
 
     try {
-      const data =
-        await call(
-          '/attendance/sessions/start/',
-          token,
-          {
-            method: 'POST',
-
-            body: JSON.stringify({
-              course,
-              semester,
-              beacon_id:
-                BEACON_ID,
-            }),
-          }
-        )
+      const data = await call('/attendance/sessions/start/', token, {
+        method: 'POST',
+        body: JSON.stringify({
+          course,
+          semester,
+          beacon_id: BEACON_ID,
+        }),
+      })
 
       setSession(data)
       setSeconds(30)
-
-      await loadRoster(
-        data.id
-      )
+      await loadRoster(data.id)
     } catch (err) {
-      setMessage(
-        err.message
-      )
+      setMessage(err.message)
     } finally {
       setBusy(false)
     }
@@ -2116,23 +784,13 @@ function StaffSession({
     setBusy(true)
 
     try {
-      await call(
-        `/attendance/sessions/${session.id}/stop/`,
-        token,
-        {
-          method: 'POST',
-        }
-      )
-
+      await call(`/attendance/sessions/${session.id}/stop/`, token, {
+        method: 'POST',
+      })
       setSession(null)
-
-      setMessage(
-        'Attendance session stopped.'
-      )
+      setMessage('Attendance session stopped.')
     } catch (err) {
-      setMessage(
-        err.message
-      )
+      setMessage(err.message)
     } finally {
       setBusy(false)
     }
@@ -2140,29 +798,13 @@ function StaffSession({
 
   return (
     <div className="card">
-      <h2>
-        Attendance session
-      </h2>
-
-      <p className="sub">
-        Start a session and display
-        the QR code to students.
-      </p>
+      <h2>Attendance session</h2>
+      <p className="sub">Start a session and display the QR code to students.</p>
 
       {!session ? (
         <>
-          <label>
-            Subject
-          </label>
-
-          <select
-            value={course}
-            onChange={e =>
-              setCourse(
-                e.target.value
-              )
-            }
-          >
+          <label>Subject</label>
+          <select value={course} onChange={e => setCourse(e.target.value)}>
             {[
               'Computer Networks',
               'Big Data',
@@ -2170,177 +812,68 @@ function StaffSession({
               'DBMS',
               'Operating Systems',
               'Web Technology',
-            ].map(x => (
-              <option key={x}>
-                {x}
-              </option>
+            ].map(x => <option key={x}>{x}</option>)}
+          </select>
+
+          <label>Semester</label>
+          <select value={semester} onChange={e => setSemester(e.target.value)}>
+            {['1', '2', '3', '4', '5', '6', '7', '8'].map(x => (
+              <option key={x}>{x}</option>
             ))}
           </select>
 
-          <label>
-            Semester
-          </label>
-
-          <select
-            value={semester}
-            onChange={e =>
-              setSemester(
-                e.target.value
-              )
-            }
-          >
-            {[
-              '1',
-              '2',
-              '3',
-              '4',
-              '5',
-              '6',
-              '7',
-              '8',
-            ].map(x => (
-              <option key={x}>
-                {x}
-              </option>
-            ))}
-          </select>
-
-          <button
-            className="btn"
-            onClick={start}
-            disabled={busy}
-          >
-            {busy
-              ? 'Starting...'
-              : 'Start attendance'}
+          <button className="btn" onClick={start} disabled={busy}>
+            {busy ? 'Starting...' : 'Start attendance'}
           </button>
         </>
       ) : (
         <>
-          <div className="sub">
-            ACTIVE SESSION
+          <div className="sub">ACTIVE SESSION</div>
+          <h2>{session.course}</h2>
+          <p className="sub">Semester {session.semester}</p>
+
+          <div style={{
+            background: '#fff',
+            padding: 16,
+            borderRadius: 16,
+            width: 'fit-content',
+            margin: '20px auto',
+          }}>
+            <QRCodeSVG value={session.qr_token || ''} size={220} />
           </div>
 
-          <h2>
-            {session.course}
-          </h2>
-
-          <p className="sub">
-            Semester{' '}
-            {session.semester}
-          </p>
-
-          <div
-            style={{
-              background: '#fff',
-              padding: 16,
-              borderRadius: 16,
-              width: 'fit-content',
-              margin:
-                '20px auto',
-            }}
-          >
-            <QRCodeSVG
-              value={
-                session.qr_token ||
-                ''
-              }
-              size={220}
-            />
-          </div>
-
-          <h1
-            style={{
-              textAlign:
-                'center',
-            }}
-          >
-            {seconds}s
-          </h1>
-
-          <p
-            className="sub"
-            style={{
-              textAlign:
-                'center',
-            }}
-          >
+          <h1 style={{ textAlign: 'center' }}>{seconds}s</h1>
+          <p className="sub" style={{ textAlign: 'center' }}>
             QR refresh countdown
           </p>
 
-          <p>
-            <strong>
-              Present:
-            </strong>{' '}
-            {session.present ??
-              0}
-          </p>
+          <p><strong>Present:</strong> {session.present ?? 0}</p>
 
-          <button
-            className="ghost"
-            onClick={() =>
-              refresh(
-                session.id
-              )
-            }
-          >
+          <button className="ghost" onClick={() => refresh(session.id)}>
             Refresh QR
           </button>
-
-          <button
-            className="ghost"
-            onClick={() =>
-              loadRoster(
-                session.id
-              )
-            }
-          >
+          <button className="ghost" onClick={() => loadRoster(session.id)}>
             Refresh present list
           </button>
-
-          <button
-            className="btn"
-            onClick={stop}
-            disabled={busy}
-          >
+          <button className="btn" onClick={stop} disabled={busy}>
             Stop attendance
           </button>
 
-          <SectionTitle>
-            Student attendance list
-          </SectionTitle>
+          <SectionTitle>Student attendance list</SectionTitle>
 
           {roster.length === 0 ? (
             <Empty>
-              No students found for
-              this department yet.
-              Add students under
+              No students found for this department yet. Add students under
               Student Management.
             </Empty>
           ) : (
             roster.map(row => (
-              <div
-                className="row"
-                key={row.usn}
-              >
+              <div className="row" key={row.usn}>
                 <div>
-                  <strong>
-                    {row.name}
-                  </strong>
-
-                  <p className="sub">
-                    {row.usn}
-                  </p>
+                  <strong>{row.name}</strong>
+                  <p className="sub">{row.usn}</p>
                 </div>
-
-                <Tag
-                  type={
-                    row.status ===
-                    'Present'
-                      ? 'ok'
-                      : 'bad'
-                  }
-                >
+                <Tag type={row.status === 'Present' ? 'ok' : 'bad'}>
                   {row.status}
                 </Tag>
               </div>
@@ -2349,76 +882,37 @@ function StaffSession({
         </>
       )}
 
-      {message && (
-        <p className="note">
-          {message}
-        </p>
-      )}
+      {message && <p className="note">{message}</p>}
     </div>
   )
 }
-
 /* FACULTY REPORTS */
 
-function StaffReports({
-  token,
-}) {
-  const [sessions, setSessions] =
-    useState([])
-
-  const [selected, setSelected] =
-    useState('')
-
-  const [report, setReport] =
-    useState(null)
-
-  const [error, setError] =
-    useState('')
-
-  const [loading, setLoading] =
-    useState(false)
+function StaffReports({ token }) {
+  const [sessions, setSessions] = useState([])
+  const [selected, setSelected] = useState('')
+  const [report, setReport] = useState(null)
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    call(
-      '/attendance/sessions/',
-      token
-    )
-      .then(data =>
-        setSessions(
-          Array.isArray(data)
-            ? data
-            : data.results || []
-        )
-      )
-      .catch(err =>
-        setError(
-          err.message
-        )
-      )
+    call('/attendance/sessions/', token)
+      .then(data => setSessions(Array.isArray(data) ? data : data.results || []))
+      .catch(err => setError(err.message))
   }, [token])
 
-  async function loadReport(
-    id
-  ) {
+  async function loadReport(id) {
     setSelected(id)
     setReport(null)
-
     if (!id) return
 
     setLoading(true)
     setError('')
 
     try {
-      setReport(
-        await call(
-          `/attendance/sessions/${id}/report/`,
-          token
-        )
-      )
+      setReport(await call(`/attendance/sessions/${id}/report/`, token))
     } catch (err) {
-      setError(
-        err.message
-      )
+      setError(err.message)
     } finally {
       setLoading(false)
     }
@@ -2426,82 +920,42 @@ function StaffReports({
 
   async function exportExcel() {
     try {
-      const response =
-        await call(
-          `/attendance/sessions/${selected}/excel/`,
-          token,
-          {
-            raw: true,
-          }
-        )
+      const response = await call(
+        `/attendance/sessions/${selected}/excel/`,
+        token,
+        { raw: true }
+      )
 
-      const blob =
-        await response.blob()
-
-      const url =
-        URL.createObjectURL(
-          blob
-        )
-
-      const link =
-        document.createElement(
-          'a'
-        )
+      const blob = await response.blob()
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
 
       link.href = url
-
-      link.download =
-        `attendance-${selected}.xlsx`
-
+      link.download = `attendance-${selected}.xlsx`
       link.click()
 
-      URL.revokeObjectURL(
-        url
-      )
+      URL.revokeObjectURL(url)
     } catch (err) {
-      setError(
-        err.message
-      )
+      setError(err.message)
     }
   }
 
-  const rows =
-    report?.rows ||
-    report?.records ||
-    []
+  const rows = report?.rows || report?.records || []
 
   return (
     <>
       <div className="card">
-        <h2>
-          Attendance reports
-        </h2>
+        <h2>Attendance reports</h2>
 
-        <label>
-          Select session
-        </label>
-
+        <label>Select session</label>
         <select
           value={selected}
-          onChange={e =>
-            loadReport(
-              e.target.value
-            )
-          }
+          onChange={e => loadReport(e.target.value)}
         >
-          <option value="">
-            Choose a session
-          </option>
-
+          <option value="">Choose a session</option>
           {sessions.map(item => (
-            <option
-              key={item.id}
-              value={item.id}
-            >
-              {item.course} ·{' '}
-              {fmt(
-                item.started_at
-              )}
+            <option key={item.id} value={item.id}>
+              {item.course} · {fmt(item.started_at)}
             </option>
           ))}
         </select>
@@ -2509,98 +963,40 @@ function StaffReports({
         <button
           className="btn"
           disabled={!selected}
-          onClick={
-            exportExcel
-          }
+          onClick={exportExcel}
         >
           Export Excel
         </button>
 
-        {error && (
-          <p className="bad-box">
-            {error}
-          </p>
-        )}
+        {error && <p className="bad-box">{error}</p>}
       </div>
 
-      {loading && (
-        <Empty>
-          Loading report...
-        </Empty>
-      )}
+      {loading && <Empty>Loading report...</Empty>}
 
       {report && (
         <>
           <div className="card">
-            <h3>
-              {report.session
-                ?.course ||
-                'Attendance report'}
-            </h3>
-
-            <p className="sub">
-              {fmt(
-                report.session
-                  ?.started_at
-              )}
-            </p>
-
-            <p>
-              Total students:{' '}
-              {rows.length}
-            </p>
+            <h3>{report.session?.course || 'Attendance report'}</h3>
+            <p className="sub">{fmt(report.session?.started_at)}</p>
+            <p>Total students: {rows.length}</p>
           </div>
 
-          <SectionTitle>
-            Attendance records
-          </SectionTitle>
+          <SectionTitle>Attendance records</SectionTitle>
 
           {rows.length === 0 ? (
-            <Empty>
-              No students have been
-              entered for this
-              department.
-            </Empty>
+            <Empty>No students have been entered for this department.</Empty>
           ) : (
-            rows.map(
-              (row, index) => (
-                <div
-                  className="card"
-                  key={
-                    row.usn ||
-                    row.id ||
-                    index
-                  }
-                >
-                  <strong>
-                    {row.name ||
-                      row.student_name ||
-                      row.student ||
-                      `Student ${
-                        index + 1
-                      }`}
-                  </strong>
-
-                  <p className="sub">
-                    {row.usn ||
-                      row.roll_number ||
-                      ''}
-                  </p>
-
-                  <Tag
-                    type={
-                      row.status ===
-                      'Present'
-                        ? 'ok'
-                        : 'bad'
-                    }
-                  >
-                    {row.status ||
-                      'Present'}
-                  </Tag>
-                </div>
-              )
-            )
+            rows.map((row, index) => (
+              <div className="card" key={row.usn || row.id || index}>
+                <strong>
+                  {row.name || row.student_name || row.student || `Student ${index + 1}`}
+                </strong>
+                <p className="sub">{row.usn || row.roll_number || ''}</p>
+                <Tag type={row.status === 'Present' ? 'ok' : 'bad'}>
+                  {row.status || 'Present'}
+                </Tag>
+              </div>
+            ))
           )}
         </>
       )}
@@ -2611,104 +1007,38 @@ function StaffReports({
 /* CLASSES AND TIMETABLE: LOCAL DEMO */
 
 const DEFAULT_CLASSES = [
-  {
-    id: 1,
-    name: 'Computer Networks',
-    semester: '5',
-    faculty: 'Faculty',
-    students: [],
-  },
-
-  {
-    id: 2,
-    name: 'Big Data',
-    semester: '5',
-    faculty: 'Faculty',
-    students: [],
-  },
-
-  {
-    id: 3,
-    name: 'Software Engineering',
-    semester: '5',
-    faculty: 'Faculty',
-    students: [],
-  },
+  { id: 1, name: 'Computer Networks', semester: '5', faculty: 'Faculty', students: [] },
+  { id: 2, name: 'Big Data', semester: '5', faculty: 'Faculty', students: [] },
+  { id: 3, name: 'Software Engineering', semester: '5', faculty: 'Faculty', students: [] },
 ]
 
 function StaffClasses() {
-  const [classes, setClasses] =
-    useState(() =>
-      readLocal(
-        'nexvia_classes',
-        DEFAULT_CLASSES
-      )
-    )
-
-  const [
-    selectedId,
-    setSelectedId,
-  ] = useState(null)
-
-  const [name, setName] =
-    useState('')
-
-  const [semester, setSemester] =
-    useState('5')
-
-  const [faculty, setFaculty] =
-    useState('')
-
-  const [
-    studentName,
-    setStudentName,
-  ] = useState('')
-
-  const [usn, setUsn] =
-    useState('')
-
-  const [
-    timetable,
-    setTimetable,
-  ] = useState(() =>
-    readLocal(
-      'nexvia_timetable',
-      []
-    )
+  const [classes, setClasses] = useState(
+    () => readLocal('nexvia_classes', DEFAULT_CLASSES)
   )
+  const [selectedId, setSelectedId] = useState(null)
+  const [name, setName] = useState('')
+  const [semester, setSemester] = useState('5')
+  const [faculty, setFaculty] = useState('')
+  const [studentName, setStudentName] = useState('')
+  const [usn, setUsn] = useState('')
+  const [timetable, setTimetable] = useState(
+    () => readLocal('nexvia_timetable', [])
+  )
+  const [day, setDay] = useState('Monday')
+  const [time, setTime] = useState('')
+  const [subject, setSubject] = useState('')
 
-  const [day, setDay] =
-    useState('Monday')
+  const selected = classes.find(item => item.id === selectedId)
 
-  const [time, setTime] =
-    useState('')
-
-  const [subject, setSubject] =
-    useState('')
-
-  const selected =
-    classes.find(
-      item =>
-        item.id ===
-        selectedId
-    )
-
-  function updateClasses(
-    next
-  ) {
+  function updateClasses(next) {
     setClasses(next)
-
-    saveLocal(
-      'nexvia_classes',
-      next
-    )
+    saveLocal('nexvia_classes', next)
   }
 
   function addClass(e) {
     e.preventDefault()
-
-    if (!name.trim())
-      return
+    if (!name.trim()) return
 
     updateClasses([
       ...classes,
@@ -2716,9 +1046,7 @@ function StaffClasses() {
         id: Date.now(),
         name: name.trim(),
         semester,
-        faculty:
-          faculty.trim() ||
-          'Not assigned',
+        faculty: faculty.trim() || 'Not assigned',
         students: [],
       },
     ])
@@ -2729,30 +1057,19 @@ function StaffClasses() {
 
   function addStudent(e) {
     e.preventDefault()
-
-    if (
-      !selected ||
-      !studentName.trim() ||
-      !usn.trim()
-    ) {
-      return
-    }
+    if (!selected || !studentName.trim() || !usn.trim()) return
 
     updateClasses(
       classes.map(item =>
-        item.id ===
-        selectedId
+        item.id === selectedId
           ? {
               ...item,
-
               students: [
                 ...item.students,
                 {
                   id: Date.now(),
-                  name:
-                    studentName.trim(),
-                  usn:
-                    usn.trim(),
+                  name: studentName.trim(),
+                  usn: usn.trim(),
                 },
               ],
             }
@@ -2764,17 +1081,9 @@ function StaffClasses() {
     setUsn('')
   }
 
-  function addTimetable(
-    e
-  ) {
+  function addTimetable(e) {
     e.preventDefault()
-
-    if (
-      !subject.trim() ||
-      !time.trim()
-    ) {
-      return
-    }
+    if (!subject.trim() || !time.trim()) return
 
     const next = [
       ...timetable,
@@ -2782,18 +1091,12 @@ function StaffClasses() {
         id: Date.now(),
         day,
         time,
-        subject:
-          subject.trim(),
+        subject: subject.trim(),
       },
     ]
 
     setTimetable(next)
-
-    saveLocal(
-      'nexvia_timetable',
-      next
-    )
-
+    saveLocal('nexvia_timetable', next)
     setSubject('')
     setTime('')
   }
@@ -2801,110 +1104,51 @@ function StaffClasses() {
   return (
     <>
       <div className="card">
-        <h2>
-          Classes management
-        </h2>
-
+        <h2>Classes management</h2>
         <p className="note">
-          Class and timetable
-          entries are saved in this
-          browser only. Use Student
-          Management for the official
-          database student roster.
+          Class and timetable entries are saved in this browser only.
+          Use Student Management for the official database student roster.
         </p>
 
-        <form
-          onSubmit={addClass}
-        >
-          <label>
-            Class name
-          </label>
-
+        <form onSubmit={addClass}>
+          <label>Class name</label>
           <input
             value={name}
-            onChange={e =>
-              setName(
-                e.target.value
-              )
-            }
+            onChange={e => setName(e.target.value)}
             required
           />
 
-          <label>
-            Semester
-          </label>
-
+          <label>Semester</label>
           <select
             value={semester}
-            onChange={e =>
-              setSemester(
-                e.target.value
-              )
-            }
+            onChange={e => setSemester(e.target.value)}
           >
-            {[
-              '1',
-              '2',
-              '3',
-              '4',
-              '5',
-              '6',
-              '7',
-              '8',
-            ].map(x => (
-              <option key={x}>
-                {x}
-              </option>
+            {['1', '2', '3', '4', '5', '6', '7', '8'].map(x => (
+              <option key={x}>{x}</option>
             ))}
           </select>
 
-          <label>
-            Faculty
-          </label>
-
+          <label>Faculty</label>
           <input
             value={faculty}
-            onChange={e =>
-              setFaculty(
-                e.target.value
-              )
-            }
+            onChange={e => setFaculty(e.target.value)}
           />
 
-          <button className="btn">
-            Add class
-          </button>
+          <button className="btn">Add class</button>
         </form>
       </div>
 
-      <SectionTitle>
-        Class list
-      </SectionTitle>
+      <SectionTitle>Class list</SectionTitle>
 
       {classes.map(item => (
-        <div
-          className="card"
-          key={item.id}
-        >
-          <strong>
-            {item.name}
-          </strong>
-
+        <div className="card" key={item.id}>
+          <strong>{item.name}</strong>
           <p className="sub">
-            Semester{' '}
-            {item.semester} ·{' '}
-            {item.faculty} ·{' '}
-            {item.students.length}{' '}
-            local demo students
+            Semester {item.semester} · {item.faculty} · {item.students.length} local demo students
           </p>
-
           <button
             className="ghost sm"
-            onClick={() =>
-              setSelectedId(
-                item.id
-              )
-            }
+            onClick={() => setSelectedId(item.id)}
           >
             View class
           </button>
@@ -2914,481 +1158,237 @@ function StaffClasses() {
       {selected && (
         <div className="card">
           <div className="row">
-            <h3>
-              {selected.name}
-            </h3>
-
+            <h3>{selected.name}</h3>
             <button
               className="ghost sm"
-              onClick={() =>
-                setSelectedId(
-                  null
-                )
-              }
+              onClick={() => setSelectedId(null)}
             >
               Close
             </button>
           </div>
 
-          <form
-            onSubmit={addStudent}
-          >
-            <label>
-              Student name
-              (local class demo
-              only)
-            </label>
-
+          <form onSubmit={addStudent}>
+            <label>Student name (local class demo only)</label>
             <input
-              value={
-                studentName
-              }
-              onChange={e =>
-                setStudentName(
-                  e.target.value
-                )
-              }
+              value={studentName}
+              onChange={e => setStudentName(e.target.value)}
               required
             />
 
-            <label>
-              USN
-            </label>
-
+            <label>USN</label>
             <input
               value={usn}
-              onChange={e =>
-                setUsn(
-                  e.target.value
-                )
-              }
+              onChange={e => setUsn(e.target.value)}
               required
             />
 
-            <button className="btn">
-              Add to local class
-            </button>
+            <button className="btn">Add to local class</button>
           </form>
 
-          <SectionTitle>
-            Local class students
-          </SectionTitle>
-
-          {selected.students.map(
-            student => (
-              <p
-                key={
-                  student.id
-                }
-              >
-                {student.name} ·{' '}
-                {student.usn}
-              </p>
-            )
-          )}
+          <SectionTitle>Local class students</SectionTitle>
+          {selected.students.map(student => (
+            <p key={student.id}>
+              {student.name} · {student.usn}
+            </p>
+          ))}
         </div>
       )}
 
-      <SectionTitle>
-        Timetable management
-      </SectionTitle>
+      <SectionTitle>Timetable management</SectionTitle>
 
       <div className="card">
-        <form
-          onSubmit={
-            addTimetable
-          }
-        >
-          <label>
-            Day
-          </label>
-
-          <select
-            value={day}
-            onChange={e =>
-              setDay(
-                e.target.value
-              )
-            }
-          >
-            {[
-              'Monday',
-              'Tuesday',
-              'Wednesday',
-              'Thursday',
-              'Friday',
-              'Saturday',
-            ].map(x => (
-              <option key={x}>
-                {x}
-              </option>
+        <form onSubmit={addTimetable}>
+          <label>Day</label>
+          <select value={day} onChange={e => setDay(e.target.value)}>
+            {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map(x => (
+              <option key={x}>{x}</option>
             ))}
           </select>
 
-          <label>
-            Time
-          </label>
-
+          <label>Time</label>
           <input
             value={time}
-            onChange={e =>
-              setTime(
-                e.target.value
-              )
-            }
+            onChange={e => setTime(e.target.value)}
             placeholder="10:00 AM - 11:00 AM"
             required
           />
 
-          <label>
-            Subject
-          </label>
-
+          <label>Subject</label>
           <input
             value={subject}
-            onChange={e =>
-              setSubject(
-                e.target.value
-              )
-            }
+            onChange={e => setSubject(e.target.value)}
             required
           />
 
-          <button className="btn">
-            Add timetable entry
-          </button>
+          <button className="btn">Add timetable entry</button>
         </form>
       </div>
 
-      {timetable.map(
-        item => (
-          <div
-            className="card"
-            key={item.id}
-          >
-            <div className="row">
-              <div>
-                <strong>
-                  {item.subject}
-                </strong>
-
-                <p className="sub">
-                  {item.day} ·{' '}
-                  {item.time}
-                </p>
-              </div>
-
-              <button
-                className="ghost sm"
-                onClick={() => {
-                  const next =
-                    timetable.filter(
-                      row =>
-                        row.id !==
-                        item.id
-                    )
-
-                  setTimetable(
-                    next
-                  )
-
-                  saveLocal(
-                    'nexvia_timetable',
-                    next
-                  )
-                }}
-              >
-                Delete
-              </button>
+      {timetable.map(item => (
+        <div className="card" key={item.id}>
+          <div className="row">
+            <div>
+              <strong>{item.subject}</strong>
+              <p className="sub">{item.day} · {item.time}</p>
             </div>
+            <button
+              className="ghost sm"
+              onClick={() => {
+                const next = timetable.filter(row => row.id !== item.id)
+                setTimetable(next)
+                saveLocal('nexvia_timetable', next)
+              }}
+            >
+              Delete
+            </button>
           </div>
-        )
-      )}
+        </div>
+      ))}
     </>
   )
 }
 
 /* DEDICATED CAMPUSCARE STAFF PORTAL */
 
-function CampusCareClaims({
-  token,
-}) {
-  const [items, setItems] =
-    useState([])
 
-  const [filter, setFilter] =
-    useState('All')
+function CampusCareClaims({ token }) {
+  const [items, setItems] = useState([])
+  const [filter, setFilter] = useState('All')
+  const [responses, setResponses] = useState({})
+  const [busyId, setBusyId] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [message, setMessage] = useState('')
 
-  const [responses, setResponses] =
-    useState({})
+  const load = useCallback(async () => {
+    setLoading(true)
+    setError('')
 
-  const [busyId, setBusyId] =
-    useState(null)
-
-  const [loading, setLoading] =
-    useState(true)
-
-  const [error, setError] =
-    useState('')
-
-  const [message, setMessage] =
-    useState('')
-
-  const load = useCallback(
-    async () => {
-      setLoading(true)
-      setError('')
-
-      try {
-        const data =
-          await call(
-            '/complaints/',
-            token
-          )
-
-        setItems(
-          Array.isArray(data)
-            ? data
-            : data.results || []
-        )
-      } catch (err) {
-        setError(
-          err.message
-        )
-      } finally {
-        setLoading(false)
-      }
-    },
-    [token]
-  )
+    try {
+      const data = await call('/complaints/', token)
+      setItems(Array.isArray(data) ? data : data.results || [])
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }, [token])
 
   useEffect(() => {
     load()
   }, [load])
 
-  async function update(
-    item,
-    status
-  ) {
+  async function update(item, status) {
     setBusyId(item.id)
     setError('')
     setMessage('')
 
     try {
-      await call(
-        `/complaints/${item.id}/update/`,
-        token,
-        {
-          method: 'PATCH',
+      await call(`/complaints/${item.id}/update/`, token, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          status,
+          response: responses[item.id] ?? item.response ?? '',
+        }),
+      })
 
-          body: JSON.stringify({
-            status,
-
-            response:
-              responses[
-                item.id
-              ] ??
-              item.response ??
-              '',
-          }),
-        }
-      )
-
-      setMessage(
-        `Claim #${item.id} updated to ${status}.`
-      )
-
+      setMessage(`Claim #${item.id} updated to ${status}.`)
       await load()
     } catch (err) {
-      setError(
-        err.message
-      )
+      setError(err.message)
     } finally {
       setBusyId(null)
     }
   }
 
-  const filtered =
-    filter === 'All'
-      ? items
-      : items.filter(
-          item =>
-            item.status ===
-            filter
-        )
+  const filtered = filter === 'All'
+    ? items
+    : items.filter(item => item.status === filter)
 
   return (
     <>
       <div className="card">
-        <h2>
-          CampusCare claims
-        </h2>
+        <h2>CampusCare claims</h2>
 
         <p className="sub">
-          Review student concerns,
-          assign action, and resolve
-          complaints.
+          Review student concerns, assign action, and resolve complaints.
         </p>
 
         <div className="row wrap">
-          {[
-            'All',
-            'Pending',
-            'Assigned',
-            'Action Started',
-            'Resolved',
-          ].map(value => (
+          {['All', 'Pending', 'Assigned', 'Action Started', 'Resolved'].map(value => (
             <button
               key={value}
-              className={
-                filter === value
-                  ? 'btn sm'
-                  : 'ghost sm'
-              }
-              onClick={() =>
-                setFilter(
-                  value
-                )
-              }
+              className={filter === value ? 'btn sm' : 'ghost sm'}
+              onClick={() => setFilter(value)}
             >
               {value}
             </button>
           ))}
         </div>
 
-        <button
-          className="ghost sm"
-          onClick={load}
-        >
+        <button className="ghost sm" onClick={load}>
           Refresh claims
         </button>
       </div>
 
-      {message && (
-        <p className="ok-box">
-          {message}
-        </p>
-      )}
-
-      {error && (
-        <p className="bad-box">
-          {error}
-        </p>
-      )}
+      {message && <p className="ok-box">{message}</p>}
+      {error && <p className="bad-box">{error}</p>}
 
       {loading ? (
-        <Empty>
-          Loading claims...
-        </Empty>
+        <Empty>Loading claims...</Empty>
       ) : filtered.length === 0 ? (
-        <Empty>
-          No claims in this
-          category.
-        </Empty>
+        <Empty>No claims in this category.</Empty>
       ) : (
         filtered.map(item => (
-          <div
-            className="card"
-            key={item.id}
-          >
+          <div className="card" key={item.id}>
             <div className="row">
-              <strong>
-                #{item.id} ·{' '}
-                {item.category}
-              </strong>
-
-              <Tag>
-                {item.status}
-              </Tag>
+              <strong>#{item.id} · {item.category}</strong>
+              <Tag>{item.status}</Tag>
             </div>
 
-            <p>
-              {item.description}
+            <p>{item.description}</p>
+
+            <p className="sub">
+              Anonymous claim · Student identity protected
             </p>
 
             <p className="sub">
-              Anonymous claim ·
-              Student identity
-              protected
+              Raised: {fmt(item.raised_at)}
             </p>
 
-            <p className="sub">
-              Raised:{' '}
-              {fmt(
-                item.raised_at
-              )}
-            </p>
-
-            <label>
-              Response to student
-            </label>
+            <label>Response to student</label>
 
             <textarea
               rows="2"
-              value={
-                responses[
-                  item.id
-                ] ??
-                item.response ??
-                ''
-              }
-              onChange={e =>
-                setResponses(
-                  old => ({
-                    ...old,
-                    [item.id]:
-                      e.target.value,
-                  })
-                )
-              }
+              value={responses[item.id] ?? item.response ?? ''}
+              onChange={e => setResponses(old => ({
+                ...old,
+                [item.id]: e.target.value,
+              }))}
               placeholder="Write an update or resolution..."
             />
 
             <div className="row wrap">
               <button
                 className="ghost sm"
-                disabled={
-                  busyId ===
-                  item.id
-                }
-                onClick={() =>
-                  update(
-                    item,
-                    'Assigned'
-                  )
-                }
+                disabled={busyId === item.id}
+                onClick={() => update(item, 'Assigned')}
               >
                 Assign
               </button>
 
               <button
                 className="ghost sm"
-                disabled={
-                  busyId ===
-                  item.id
-                }
-                onClick={() =>
-                  update(
-                    item,
-                    'Action Started'
-                  )
-                }
+                disabled={busyId === item.id}
+                onClick={() => update(item, 'Action Started')}
               >
                 Start action
               </button>
 
               <button
                 className="btn sm"
-                disabled={
-                  busyId ===
-                  item.id
-                }
-                onClick={() =>
-                  update(
-                    item,
-                    'Resolved'
-                  )
-                }
+                disabled={busyId === item.id}
+                onClick={() => update(item, 'Resolved')}
               >
                 Resolve
               </button>
@@ -3400,56 +1400,28 @@ function CampusCareClaims({
   )
 }
 
-function CampusCarePortal({
-  token,
-  onLogout,
-}) {
+function CampusCarePortal({ token, onLogout }) {
   return (
     <Shell
       title="CampusCare Staff Portal"
       subtitle="Manage and resolve student claims"
       onLogout={onLogout}
     >
-      <CampusCareClaims
-        token={token}
-      />
+      <CampusCareClaims token={token} />
     </Shell>
   )
 }
 
 /* FACULTY PORTAL */
 
-function FacultyPortal({
-  token,
-  onLogout,
-}) {
-  const [tab, setTab] =
-    useState('students')
+function FacultyPortal({ token, onLogout }) {
+  const [tab, setTab] = useState('students')
 
   const nav = [
-    {
-      id: 'students',
-      label: 'Students',
-      icon: '♙',
-    },
-
-    {
-      id: 'attendance',
-      label: 'Attendance',
-      icon: '▦',
-    },
-
-    {
-      id: 'classes',
-      label: 'Classes',
-      icon: '▤',
-    },
-
-    {
-      id: 'reports',
-      label: 'Reports',
-      icon: '▥',
-    },
+    { id: 'students', label: 'Students', icon: '♙' },
+    { id: 'attendance', label: 'Attendance', icon: '▦' },
+    { id: 'classes', label: 'Classes', icon: '▤' },
+    { id: 'reports', label: 'Reports', icon: '▥' },
   ]
 
   return (
@@ -3458,33 +1430,12 @@ function FacultyPortal({
       subtitle="Manage student records and attendance"
       onLogout={onLogout}
     >
-      {tab === 'students' && (
-        <StaffStudents
-          token={token}
-        />
-      )}
+      {tab === 'students' && <StaffStudents token={token} />}
+      {tab === 'attendance' && <StaffSession token={token} />}
+      {tab === 'classes' && <StaffClasses />}
+      {tab === 'reports' && <StaffReports token={token} />}
 
-      {tab === 'attendance' && (
-        <StaffSession
-          token={token}
-        />
-      )}
-
-      {tab === 'classes' && (
-        <StaffClasses />
-      )}
-
-      {tab === 'reports' && (
-        <StaffReports
-          token={token}
-        />
-      )}
-
-      <BottomNav
-        items={nav}
-        active={tab}
-        onChange={setTab}
-      />
+      <BottomNav items={nav} active={tab} onChange={setTab} />
     </Shell>
   )
 }
@@ -3492,89 +1443,46 @@ function FacultyPortal({
 /* MAIN APP */
 
 export default function App() {
-  const [auth, setAuth] =
-    useState(() =>
-      readLocal(
-        'nexvia_auth',
-        null
-      )
-    )
+  const [auth, setAuth] = useState(
+    () => readLocal('nexvia_auth', null)
+  )
 
   function login(data) {
     const next = {
       token: data.token,
       user: data.user,
     }
-
-    saveLocal(
-      'nexvia_auth',
-      next
-    )
-
+    saveLocal('nexvia_auth', next)
     setAuth(next)
   }
 
   function logout() {
-    localStorage.removeItem(
-      'nexvia_auth'
-    )
-
-    localStorage.removeItem(
-      'nexvia_username'
-    )
-
+    localStorage.removeItem('nexvia_auth')
     setAuth(null)
   }
 
   if (!auth?.token) {
-    return (
-      <Login
-        onLogin={login}
-      />
-    )
+    return <Login onLogin={login} />
   }
 
-  const role = String(
-    auth.user?.role || ''
-  ).toLowerCase()
+  const role = String(auth.user?.role || '').toLowerCase()
 
-  if (
-    role === 'campuscare'
-  ) {
-    return (
-      <CampusCarePortal
-        token={auth.token}
-        onLogout={logout}
-      />
-    )
+  if (role === 'campuscare') {
+    return <CampusCarePortal token={auth.token} onLogout={logout} />
   }
 
   if (role === 'staff') {
-    return (
-      <FacultyPortal
-        token={auth.token}
-        onLogout={logout}
-      />
-    )
+    return <FacultyPortal token={auth.token} onLogout={logout} />
   }
 
   if (role === 'student') {
-    return (
-      <Student
-        token={auth.token}
-        user={auth.user}
-        onLogout={logout}
-      />
-    )
+    return <Student
+      token={auth.token}
+      user={auth.user}
+      onLogout={logout}
+    />
   }
 
-  localStorage.removeItem(
-    'nexvia_auth'
-  )
-
-  return (
-    <Login
-      onLogin={login}
-    />
-  )
+  localStorage.removeItem('nexvia_auth')
+  return <Login onLogin={login} />
 }
