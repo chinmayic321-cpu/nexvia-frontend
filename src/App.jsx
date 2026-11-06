@@ -36,29 +36,30 @@ async function call(path, token, options = {}) {
 
   let response
 
-  try {
-    response = await fetch(`${API}${path}`, {
-      ...fetchOptions,
-      headers,
-    })
-  } catch (err) {
-    console.error('NEXVIA API request failed:', err)
+try {
+  response = await fetch(`${API}${path}`, {
+    ...fetchOptions,
+    headers,
+  })
+} catch (err) {
+  console.error('NEXVIA API request failed:', err)
 
-    throw new Error(
-      `Cannot reach backend: ${
-        err?.message || 'Unknown browser fetch error'
-      }`
-    )
+  throw new Error(
+    `Cannot reach backend: ${
+      err?.name || 'UnknownError'
+    } — ${
+      err?.message || 'Unknown browser fetch error'
+    }`
+  )
+}
+
+if (raw) {
+  if (!response.ok) {
+    throw new Error(`Request failed: ${response.status}`)
   }
 
-  if (raw) {
-    if (!response.ok) {
-      throw new Error(`Request failed: ${response.status}`)
-    }
-
-    return response
-  }
-
+  return response
+}
   const data = await response.json().catch(() => ({}))
 
   if (!response.ok) {
@@ -741,11 +742,12 @@ function ScanTab({ token }) {
     let device
 
     try {
- device =
+ const device =
   await navigator.bluetooth.requestDevice({
-    acceptAllDevices: true,
-    optionalServices: [
-      BEACON_SERVICE_UUID,
+    filters: [
+      {
+        services: [BEACON_SERVICE_UUID],
+      },
     ],
   })
 } catch (err) {
