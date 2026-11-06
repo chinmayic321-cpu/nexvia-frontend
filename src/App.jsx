@@ -20,11 +20,14 @@ async function call(path, token, options = {}) {
   if (token) headers.Authorization = `Bearer ${token}`
 
   let response
-  try {
-    response = await fetch(`${API}${path}`, { ...fetchOptions, headers })
-  } catch {
-    throw new Error('Cannot reach backend. Check Django and its Cloudflare tunnel.')
-  }
+try {
+  response = await fetch(`${API}${path}`, { ...fetchOptions, headers })
+} catch (err) {
+  console.error('NEXVIA API request failed:', err)
+  throw new Error(
+    `Cannot reach backend: ${err?.message || 'Unknown browser fetch error'}`
+  )
+}
 
   if (raw) {
     if (!response.ok) throw new Error(`Request failed: ${response.status}`)
