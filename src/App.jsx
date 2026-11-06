@@ -728,104 +728,111 @@ function ScanTab({ token }) {
       setCamera(false)
     }, [])
 
-  async function verifyBeacon() {
-    if (!navigator.bluetooth) {
+ async function verifyBeacon() {
+  if (!navigator.bluetooth) {
+    throw new Error(
+      'Bluetooth is not supported in this browser. Open NEXVIA in Chrome on Android.'
+    )
+  }
+
+  setVerification(
+    'Searching for NEXVIA beacon...'
+  )
+
+  let device
+
+  try {
+    device =
+      await navigator.bluetooth.requestDevice({
+        acceptAllDevices: true,
+        optionalServices: [
+          BEACON_SERVICE_UUID,
+        ],
+      })
+  } catch (err) {
+    if (
+      err?.name === 'NotFoundError'
+    ) {
       throw new Error(
-        'Bluetooth is not supported in this browser. Open NEXVIA in Chrome on Android.'
+        'No Bluetooth device was selected.'
       )
     }
 
-    setVerification(
-      'Searching for NEXVIA beacon...'
+    throw new Error(
+      err?.message ||
+        'Bluetooth beacon selection failed.'
     )
+  }
 
-    let device
+  if (!device) {
+    throw new Error(
+      'No Bluetooth device was returned by the browser.'
+    )
+  }
 
-    try {
-const device =
-  await navigator.bluetooth.requestDevice({
-    filters: [
-      {
-        name: BEACON_NAME,
-      },
-    ],
-    optionalServices: [
-      BEACON_SERVICE_UUID,
-    ],
-  })
-} catch (err) {
+  setVerification(
+    `Selected device: ${
+      device.name ||
+      'Unknown Bluetooth device'
+    }. Verifying NEXVIA beacon...`
+  )
+
   if (
-    err?.name ===
-    'NotFoundError'
+    device.name &&
+    device.name !== BEACON_NAME
   ) {
     throw new Error(
-      'No NEXVIA beacon was selected. Select NEXVIA-ISE-B204 from the Bluetooth device list.'
+      `Wrong Bluetooth device selected. Please select ${BEACON_NAME}.`
     )
   }
 
-  throw new Error(
-    err?.message ||
-      'Bluetooth beacon selection failed.'
-  )
-}
-
-    if (!device) {
-      throw new Error(
-        'NEXVIA beacon was not selected.'
-      )
-    }
-
-    setVerification(
-      'NEXVIA beacon found. Connecting...'
+  if (!device.gatt) {
+    throw new Error(
+      'The selected Bluetooth device does not support GATT.'
     )
+  }
 
-    if (!device.gatt) {
-      throw new Error(
-        'The selected Bluetooth device does not support GATT.'
-      )
-    }
+  let server
 
-    let server
+  try {
+    server =
+      await device.gatt.connect()
+  } catch (err) {
+    throw new Error(
+      `Could not connect to NEXVIA beacon: ${
+        err?.message ||
+        'Bluetooth connection failed.'
+      }`
+    )
+  }
 
+  try {
+    await server.getPrimaryService(
+      BEACON_SERVICE_UUID
+    )
+  } catch (err) {
+    throw new Error(
+      'The selected device is not the NEXVIA-ISE-B204 beacon.'
+    )
+  } finally {
     try {
-      server =
-        await device.gatt.connect()
-    } catch (err) {
-      throw new Error(
-        `Could not connect to NEXVIA beacon: ${
-          err?.message ||
-          'Bluetooth connection failed.'
-        }`
-      )
-    }
-
-    try {
-      await server.getPrimaryService(
-        BEACON_SERVICE_UUID
-      )
-    } catch (err) {
-      throw new Error(
-        'The selected device is not the NEXVIA-I​​SE-B204 beacon.'
-      )
-    } finally {
-      try {
-        if (
-          device.gatt &&
-          device.gatt.connected
-        ) {
-          device.gatt.disconnect()
-        }
-      } catch {
-        // Ignore disconnect errors.
+      if (
+        device.gatt &&
+        device.gatt.connected
+      ) {
+        device.gatt.disconnect()
       }
+    } catch {
+      // Ignore disconnect errors.
     }
-
-    setVerification(
-      'NEXVIA beacon verified.'
-    )
-
-    return true
   }
+
+  setVerification(
+    'NEXVIA beacon verified.'
+  )
+
+  return true
+}
 
   async function verifyBiometric() {
     if (!window.isSecureContext) {
