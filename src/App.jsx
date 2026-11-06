@@ -1410,11 +1410,11 @@ export default function App() {
     return <FacultyPortal token={auth.token} onLogout={logout} />
   }
 
-  if (role === 'student') {
-    return <Student
-      token={auth.token}
-      user={auth.user}
-      onLogout={logout}
+ if (role === 'student') {
+  return <StudentHome
+    token={auth.token}
+    user={auth.user}
+    onLogout={logout}
     />
   }
 
