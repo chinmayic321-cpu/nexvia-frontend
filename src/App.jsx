@@ -741,40 +741,28 @@ function ScanTab({ token }) {
     let device
 
     try {
-      device =
-        await navigator.bluetooth.requestDevice(
-          {
-            filters: [
-              {
-                name: BEACON_NAME,
-                services: [
-                  BEACON_SERVICE_UUID,
-                ],
-              },
+  device =
+    await navigator.bluetooth.requestDevice({
+      acceptAllDevices: true,
+      optionalServices: [
+        BEACON_SERVICE_UUID,
+      ],
+    })
+} catch (err) {
+  if (
+    err?.name ===
+    'NotFoundError'
+  ) {
+    throw new Error(
+      'No NEXVIA beacon was selected. Select NEXVIA-ISE-B204 from the Bluetooth device list.'
+    )
+  }
 
-              {
-                services: [
-                  BEACON_SERVICE_UUID,
-                ],
-              },
-            ],
-          }
-        )
-    } catch (err) {
-      if (
-        err?.name ===
-        'NotFoundError'
-      ) {
-        throw new Error(
-          'No NEXVIA beacon was selected. Select NEXVIA-ISE-B204 from the Bluetooth device list.'
-        )
-      }
-
-      throw new Error(
-        err?.message ||
-          'Bluetooth beacon selection failed.'
-      )
-    }
+  throw new Error(
+    err?.message ||
+      'Bluetooth beacon selection failed.'
+  )
+}
 
     if (!device) {
       throw new Error(
